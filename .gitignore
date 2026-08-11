@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+*.log
+.DS_Store
+.vite
+.pnpm-store
+
+# Originali scaricati da Commons: si riscaricano con prepara-carte.mjs
+apps/web/scripts/.originali
+
+# Provini di confronto: si rifanno con prepara-carte.mjs --provino
+apps/web/scripts/.provino

@@ -1,0 +1,1357 @@
+:root {
+  --panno: #123524;
+  --panno-chiaro: #1c4a33;
+  --carta-fondo: #f4ecd8;
+  --carta-bordo: #0b1f15;
+  --testo: #f2f5f3;
+  --oro: #d8b45a;
+  --oro-tenue: #f2e6c4;
+  --rosso: #c8102e;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--panno);
+  color: var(--testo);
+  font-family: system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+.app {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 12px 12px calc(24px + env(safe-area-inset-bottom));
+  min-height: 100vh;
+  /* Colonna alta quanto lo schermo: serve al tavolo, che deve prendersi tutto
+     lo spazio che avanza invece di lasciare verde vuoto sotto le carte. */
+  display: flex;
+  flex-direction: column;
+}
+
+h1 {
+  font-size: 28px;
+  margin: 8px 0 4px;
+}
+
+h2 {
+  font-size: 20px;
+  margin: 12px 0 8px;
+}
+
+h3 {
+  font-size: 16px;
+  margin: 12px 0 6px;
+}
+
+.schermata {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sottotitolo,
+.nota {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.75;
+  line-height: 1.35;
+}
+
+.etichetta {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+fieldset {
+  border: 1px solid var(--panno-chiaro);
+  border-radius: 10px;
+  padding: 10px;
+  margin: 0;
+}
+
+legend {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.blocco {
+  background: var(--panno-chiaro);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.intestazione {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+  font-size: 13px;
+  background: var(--panno-chiaro);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+/* ---- ruoli ---- */
+
+.riga-stato {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  margin: -12px -12px 0;
+  padding: 10px 12px;
+  background: #0c2418;
+  border-bottom: 1px solid var(--panno-chiaro);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.giocatore {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  padding: 0 2px;
+  /* La dissolvenza fa vedere che cosa e' cambiato al momento della rivelazione. */
+  transition:
+    background-color 400ms ease,
+    border-color 400ms ease,
+    color 400ms ease;
+}
+
+.giocatore-chiamante {
+  background: var(--oro);
+  border-color: var(--oro);
+  color: #171308;
+  font-weight: 650;
+  padding: 0 8px;
+}
+
+.giocatore-amico {
+  background: var(--oro-tenue);
+  border-color: var(--oro);
+  color: #23200f;
+  padding: 0 8px;
+}
+
+.giocatore-ruolo {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/*
+ * Il cartaro non e' una squadra: e' un compito che dura una distribuzione.
+ * Niente oro, niente fondo pieno, solo un contorno tratteggiato neutro.
+ */
+.giocatore-cartaro {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #cfd6d1;
+  border: 1px dashed #7d8b83;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* ---- carte ---- */
+
+.mano {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 10px;
+  scrollbar-width: thin;
+}
+
+.mano-larga {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
+/*
+ * La mano al tavolo sta su due file e non scorre mai. La larghezza delle carte
+ * esce da quante ne deve reggere una fila, che si decide a inizio smazzata:
+ * le carte non cambiano misura mentre la mano si svuota. Il minimo tiene la
+ * carta riconoscibile, il massimo evita che in sette diventino cartelloni.
+ */
+.mano-a-file {
+  --gap-carte: 6px;
+  --larghezza-carta: clamp(
+    44px,
+    calc((min(100vw, 420px) - 34px - (var(--per-fila) - 1) * var(--gap-carte)) / var(--per-fila)),
+    58px
+  );
+  /* Le figure sono tutte 400x661 dentro un bordo di 2px: dalla larghezza esce
+     l altezza della carta, e con lei quella delle due file. */
+  --alt-carta: calc((var(--larghezza-carta) - 4px) * 1.6525 + 4px);
+  display: block;
+  position: relative;
+  height: calc(2 * var(--alt-carta) + var(--gap-carte));
+  overflow: visible;
+  padding: 0;
+}
+
+/*
+ * Ogni carta e' appoggiata al centro della mano e scostata di tante colonne
+ * quante ne dice il suo posto; ogni fila si centra per conto suo, cosi' la
+ * fila corta cade negli spazi di quella lunga e viene una piramide. Le file si
+ * ribilanciano a ogni giocata e le carte cambiano posto: la transizione fa
+ * vedere il movimento invece di farlo sembrare uno scatto.
+ */
+.posto-carta {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(
+    calc(-50% + var(--scarto) * (var(--larghezza-carta) + var(--gap-carte))),
+    calc(var(--riga) * (var(--alt-carta) + var(--gap-carte)))
+  );
+  transition: transform 220ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .posto-carta {
+    transition: none;
+  }
+}
+
+/* Gli avvisi sul monte accompagnano il bottone: minuti, su una riga sola. */
+.nota-monte {
+  font-size: 11px;
+}
+
+/* Il quaderno delle partite: sta in fondo e non deve rubare l'occhio. */
+.nota-registro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.nota-registro .bottone-piccolo {
+  padding: 5px 10px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.registro-bottoni {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mano-a-file .carta {
+  width: var(--larghezza-carta);
+}
+
+/* La carta e' una foto: qui si decide solo quanto e' grande e come sta. */
+.carta {
+  flex: 0 0 auto;
+  width: 78px;
+  border-radius: 8px;
+  border: 2px solid var(--carta-bordo);
+  background: var(--carta-fondo);
+  padding: 0;
+  line-height: 0;
+  font-family: inherit;
+  cursor: default;
+  /* Niente overflow nascosto: il motivo del blocco esce fuori dalla carta. */
+  position: relative;
+}
+
+.carta-figura {
+  display: block;
+  width: 100%;
+  /* Le foto hanno tutte le stesse proporzioni: l altezza viene da sola. */
+  height: auto;
+  border-radius: 6px;
+  user-select: none;
+}
+
+button.carta {
+  cursor: pointer;
+}
+
+button.carta:active {
+  transform: translateY(2px);
+}
+
+.carta-piccola {
+  width: 58px;
+}
+
+/* I semi sono disegni quadrati: basta dare il lato. */
+.seme-icona {
+  display: block;
+}
+
+.seme-icona-grande {
+  width: 30px;
+  height: 30px;
+}
+
+.seme-icona-piccola {
+  width: 21px;
+  height: 21px;
+}
+
+.seme-icona-riga {
+  display: inline-block;
+  width: 17px;
+  height: 17px;
+  vertical-align: -3px;
+}
+
+.seme-neutro {
+  opacity: 0.7;
+}
+
+/* Non giocabile: si vede che c e', si vede che e' spenta. Il velo resta
+   leggero perche' in una presa la maggior parte della mano e' bloccata. */
+.carta-disabilitata .carta-figura {
+  filter: grayscale(0.5) brightness(0.88);
+}
+
+.carta-disabilitata {
+  border-color: #4a5a50;
+  pointer-events: auto;
+}
+
+.carta-scelta {
+  outline: 3px solid var(--oro);
+  transform: translateY(-6px);
+}
+
+.carta-dal-monte {
+  border-color: var(--oro);
+  box-shadow: 0 0 0 2px rgba(216, 180, 90, 0.35);
+}
+
+/* Carta scoperta in tavola: stessa durata della rivelazione dell amico. */
+.carta {
+  transition:
+    border-color 400ms ease,
+    box-shadow 400ms ease;
+}
+
+.carta-scoperta {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
+}
+
+.blocco-scoperta {
+  animation: comparsa 400ms ease;
+}
+
+@keyframes comparsa {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carta,
+  .giocatore {
+    transition: none;
+  }
+  .blocco-scoperta {
+    animation: none;
+  }
+}
+
+/* motivo del blocco al passaggio del mouse */
+.carta-disabilitata[data-motivo]:hover::after {
+  content: attr(data-motivo);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 6px;
+  white-space: nowrap;
+  background: #101010;
+  color: #fff;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  z-index: 5;
+  opacity: 1;
+}
+
+.obbligo {
+  margin: 0;
+  font-size: 13px;
+  color: var(--oro);
+}
+
+/* ---- distribuzione ---- */
+
+.posti {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.posto {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--panno-chiaro);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+/* Le carte coperte si sovrappongono come un mazzetto in mano. */
+.mazzetto {
+  display: flex;
+}
+
+.mazzetto .carta {
+  width: 26px;
+  margin-left: -14px;
+}
+
+.mazzetto .carta:first-child {
+  margin-left: 0;
+}
+
+/* ---- dichiarazioni speciali ---- */
+
+/* Riga di servizio dell hotseat: col server ognuno avra' il suo schermo. */
+.riga-dichiara {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Sedersi al tavolo o tenere il telefono in mano per tutti: si sceglie qui. */
+.interruttore {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--panno-chiaro);
+  border-radius: 10px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.interruttore input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--oro);
+  cursor: pointer;
+}
+
+/* Dipende da quello sopra: rientra e si fa piu' piccolo, che e' un attrezzo. */
+.interruttore-annidato {
+  margin-left: 18px;
+  padding: 7px 12px;
+  font-size: 13px;
+  border-style: dashed;
+}
+
+.interruttore-annidato input {
+  width: 16px;
+  height: 16px;
+}
+
+.selettore {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.selettore select {
+  background: var(--panno);
+  color: var(--testo);
+  border: 1px solid var(--oro);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.posto-scelta {
+  flex-wrap: wrap;
+}
+
+.posto-scelta .bottone-grande {
+  flex: 0 1 auto;
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 15px;
+}
+
+.posta-applicata {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--oro-tenue);
+}
+
+/*
+ * Il cappotto capita una volta ogni tanto e si paga caro: quando c'e', e' la
+ * prima cosa che si legge a fine smazzata.
+ */
+.blocco-cappotto {
+  background: #3a2a08;
+  border: 2px solid var(--oro);
+  gap: 6px;
+}
+
+.titolo-cappotto {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--oro);
+}
+
+.racconto-cappotto {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Perche' la posta e' salita, riga per riga. */
+.supplementi {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--oro-tenue);
+}
+
+/* Avvisi di passaggio nella riga di stato: non devono rubare la scena. */
+.cappotto-in-corsa,
+.sotto-soglia {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--oro-tenue);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--oro-tenue);
+  white-space: nowrap;
+}
+
+/* ---- tavolo ---- */
+
+/*
+ * Il tavolo visto da chi gioca: lui in basso, gli altri intorno. I lati sono
+ * l unica cosa che si stringe quando lo schermo e' stretto; le carte, in mano
+ * e in tavola, restano della loro misura.
+ */
+/*
+ * La schermata del tavolo e' una colonna alta quanto lo schermo: la mano sta
+ * ancorata in fondo e il tavolo si prende tutto quello che resta. Il centro e'
+ * il pezzo elastico, quindi su un telefono alto diventa generoso da solo.
+ */
+/* Il tavolo e' l unica schermata che deve stare tutta nello schermo: qui
+   l altezza e' esatta, cosi' il tavolo si allarga e si stringe da solo. */
+.app:has(.tavolo) {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+}
+
+.tavolo {
+  flex: 1;
+}
+
+.tavolo .tavolo-scena {
+  flex: 1;
+  min-height: 0;
+}
+
+.tavolo-scena {
+  position: relative;
+  --lato: clamp(38px, 12vw, 58px);
+  /* Solo il pavimento del centro: quando c'e' spazio cresce oltre, quando lo
+     schermo e' basso e' da qui che si recupera, mai dalle carte. */
+  --centro: clamp(112px, 17vh, 180px);
+  display: grid;
+  grid-template-columns: var(--lato) minmax(0, 1fr) var(--lato);
+  grid-template-rows: auto minmax(var(--centro), 1fr) auto;
+  grid-template-areas:
+    'sinistra alto   destra'
+    'sinistra centro destra'
+    'sinistra basso  destra';
+  gap: 6px;
+  background: var(--panno-chiaro);
+  border-radius: 12px;
+  padding: 8px;
+}
+
+.lato-sinistro {
+  grid-area: sinistra;
+}
+
+.lato-destro {
+  grid-area: destra;
+}
+
+.fila-alto {
+  grid-area: alto;
+}
+
+.fila-basso {
+  grid-area: basso;
+}
+
+/* Sul lato i posti stanno uno sopra l altro: il numero 2 e' il piu' lontano. */
+.lato {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 8px;
+}
+
+.fila-alto,
+.fila-basso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.posto-tavolo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 3px 6px;
+  font-size: 13px;
+}
+
+/* Chi tocca si vede dal contorno acceso, non solo dal posto che occupa. */
+.posto-turno {
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.posto-punti {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Sui lati il nome si scrive per lungo: costa qualche riga di CSS e regala
+ * la larghezza che serve alle carte.
+ */
+.posto-sinistra-1,
+.posto-sinistra-2,
+.posto-destra-1,
+.posto-destra-2 {
+  flex-direction: column;
+  width: 100%;
+  padding: 4px 2px;
+}
+
+/* writing-mode non tocca gli inline: il nome deve essere un blocco suo. */
+.posto-sinistra-1 .posto-nome,
+.posto-sinistra-2 .posto-nome,
+.posto-destra-1 .posto-nome,
+.posto-destra-2 .posto-nome {
+  display: block;
+  writing-mode: vertical-rl;
+  line-height: 1.1;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+/* A sinistra si legge dal basso verso l alto, come sul dorso di un libro. */
+.posto-sinistra-1 .posto-nome,
+.posto-sinistra-2 .posto-nome {
+  transform: rotate(180deg);
+}
+
+/* ---- dorsi: quante carte restano in mano agli altri ---- */
+
+.dorsi {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+/* Carte strette una sull altra, come un mazzetto tenuto in mano: dodici dorsi
+   devono restare un mazzetto, non una fila lunga mezzo tavolo. */
+.dorso {
+  width: 18px;
+  height: 30px;
+  border-radius: 3px;
+  border: 1px solid var(--carta-bordo);
+  background-size: cover;
+  background-position: center;
+  margin-left: -15px;
+}
+
+.dorso:first-child {
+  margin-left: 0;
+}
+
+.dorsi-in-colonna {
+  flex-direction: column;
+}
+
+.dorsi-in-colonna .dorso {
+  margin-left: 0;
+  margin-top: -26px;
+}
+
+.dorsi-in-colonna .dorso:first-child {
+  margin-top: 0;
+}
+
+/* ---- carte scoperte: l attrezzo per correggere i bot ---- */
+
+/*
+ * Il ventaglio di un bot al posto del suo mazzetto. Le carte avanzano di
+ * --passo-spiato: se ci stanno tutte intere e' il loro ingombro, se no si
+ * accavallano quel tanto che basta, mai sotto la striscia che le fa ancora
+ * riconoscere. Le misure le calcola spia.ts, qui si dispongono soltanto.
+ */
+.mano-spiata {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.mano-spiata .carta {
+  width: var(--larghezza-spiata);
+  border-width: 1px;
+  border-radius: 4px;
+}
+
+.mano-spiata > * + * {
+  margin-left: calc(var(--passo-spiato) - var(--ingombro-spiato));
+}
+
+/* Ai lati del tavolo l unico spazio e' in altezza: il ventaglio scende. */
+.mano-spiata-in-colonna {
+  flex-direction: column;
+}
+
+.mano-spiata-in-colonna > * + * {
+  margin-left: 0;
+  margin-top: calc(var(--passo-spiato) - var(--ingombro-spiato));
+}
+
+/* Il monte del chiamante scoperto: poche carte, stanno in riga senza stringersi. */
+.monte-spiato {
+  display: flex;
+  gap: 2px;
+}
+
+.monte-spiato .carta {
+  width: 22px;
+  border-width: 1px;
+  border-radius: 3px;
+}
+
+/*
+ * L interruttore delle carte scoperte, che acceso e' anche l avviso: spento
+ * sta in disparte come tutti gli attrezzi di prova, acceso si accende di
+ * giallo e non lo si perde di vista.
+ */
+.spia {
+  border: 1px solid var(--oro-tenue);
+  background: transparent;
+  color: var(--oro-tenue);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.spia-accesa {
+  border-color: var(--oro);
+  background: var(--oro);
+  color: #1d2a20;
+  font-weight: 700;
+}
+
+/*
+ * A carte scoperte il tavolo si stringe da solo: i lati si allargano per far
+ * posto ai ventagli e il pavimento del centro si accorcia. Le carte in mano
+ * non si toccano, come sempre.
+ */
+.tavolo-spiato {
+  --lato: clamp(46px, 14vw, 66px);
+  --centro: clamp(84px, 12vh, 140px);
+}
+
+/*
+ * Il nome per lungo costa quasi cento pixel di altezza a testa: a carte
+ * scoperte quell altezza serve tutta ai ventagli, e allora il nome torna
+ * dritto e piccolo. A cinque, con due posti per lato, e' l unico modo di
+ * stare nello schermo senza scorrere.
+ */
+.tavolo-spiato .posto-sinistra-1 .posto-nome,
+.tavolo-spiato .posto-sinistra-2 .posto-nome,
+.tavolo-spiato .posto-destra-1 .posto-nome,
+.tavolo-spiato .posto-destra-2 .posto-nome {
+  writing-mode: horizontal-tb;
+  transform: none;
+  white-space: normal;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.05;
+  max-width: 100%;
+  /* Un soprannome tutto attaccato va a capo dove capita: meglio spezzato che
+     tagliato via dal bordo del tavolo. */
+  overflow-wrap: anywhere;
+}
+
+/* Nome e ruolo vanno a capo dentro la colonna: la pillola del chiamante e'
+   piu' larga del posto e altrimenti finirebbe fuori dal tavolo. */
+.tavolo-spiato .lato .posto-nome .giocatore {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
+  padding: 0 4px;
+  /* Due righe e non di piu': il nome e il ruolo. Un soprannome lungo si
+     tronca, che qui l altezza vale piu' dell ultima sillaba. */
+  max-height: 2.3em;
+  overflow: hidden;
+}
+
+.tavolo-spiato .lato .posto-punti {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.tavolo-spiato .lato .giocatore-ruolo {
+  font-size: 8px;
+  letter-spacing: 0.02em;
+}
+
+/* A cinque i lati portano due ventagli a testa: ogni pixel di contorno
+   risparmiato e' un pixel che resta alle carte. */
+.tavolo:has(.tavolo-spiato) {
+  gap: 4px;
+}
+
+.tavolo-spiato .lato {
+  gap: 2px;
+}
+
+.tavolo-spiato .lato .posto-tavolo {
+  padding: 1px 2px;
+  gap: 2px;
+}
+
+/* ---- centro del tavolo ---- */
+
+.tavolo-centro {
+  grid-area: centro;
+  position: relative;
+  min-height: var(--centro);
+}
+
+/* Sta di passaggio, in mezzo a dove arriveranno le carte: una riga sola e
+   piccola, cosi' non si prende il centro del tavolo. */
+.nota-centro {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+/* Le prese si rivedono in fila, con il nome sotto ogni carta. */
+.presa-rivista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+  min-height: 108px;
+  background: var(--panno-chiaro);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.giocata {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.giocata-nome {
+  font-size: 12px;
+  color: rgba(242, 245, 243, 0.85);
+}
+
+.giocata-vince .carta {
+  outline: 3px solid var(--oro);
+}
+
+/* Il vincitore della presa si tinge d oro solo se non ha gia' un ruolo suo. */
+.giocata-vince .giocata-nome .giocatore-neutro {
+  color: var(--oro);
+  font-weight: 700;
+}
+
+/*
+ * In tavola invece il nome non serve: ogni carta entra dalla parte di chi l ha
+ * giocata, appoggiata storta di qualche grado. La pendenza arriva dall id
+ * della carta, quindi non cambia a ogni ridisegno.
+ */
+.tavolo-centro .giocata {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%) rotate(var(--pendenza, 0deg));
+}
+
+.giocata-da-basso {
+  left: 50%;
+  top: 76%;
+}
+
+.giocata-da-alto {
+  left: 50%;
+  top: 24%;
+}
+
+.giocata-da-sinistra-1 {
+  left: 22%;
+  top: 62%;
+}
+
+.giocata-da-sinistra-2 {
+  left: 14%;
+  top: 30%;
+}
+
+.giocata-da-destra-1 {
+  left: 78%;
+  top: 62%;
+}
+
+.giocata-da-destra-2 {
+  left: 86%;
+  top: 30%;
+}
+
+/*
+ * Chiusa la presa, le carte scivolano verso chi l ha vinta e sbiadiscono. Il
+ * tempo per guardarle e' gia' passato prima: la raccolta arriva solo quando il
+ * gioco lo dice, e dura quanto RACCOLTA_MS.
+ */
+.giocate-raccolta .giocata {
+  opacity: 0;
+  transition:
+    transform 600ms ease,
+    opacity 600ms ease;
+}
+
+.giocate-raccolta.raccolta-basso .giocata {
+  transform: translate(-50%, 120%) scale(0.4) rotate(var(--pendenza, 0deg));
+}
+
+.giocate-raccolta.raccolta-alto .giocata {
+  transform: translate(-50%, -220%) scale(0.4) rotate(var(--pendenza, 0deg));
+}
+
+.giocate-raccolta.raccolta-sinistra-1 .giocata,
+.giocate-raccolta.raccolta-sinistra-2 .giocata {
+  transform: translate(-180%, -50%) scale(0.4) rotate(var(--pendenza, 0deg));
+}
+
+.giocate-raccolta.raccolta-destra-1 .giocata,
+.giocate-raccolta.raccolta-destra-2 .giocata {
+  transform: translate(80%, -50%) scale(0.4) rotate(var(--pendenza, 0deg));
+}
+
+/* Chi non vuole animazioni vede solo la presa sparire, senza il volo. */
+@media (prefers-reduced-motion: reduce) {
+  .tavolo-centro .giocate-raccolta .giocata {
+    transition: opacity 200ms ease;
+    transform: translate(-50%, -50%) rotate(var(--pendenza, 0deg));
+  }
+}
+
+/*
+ * Il monte e la carta chiamata non sono carte giocate: stanno ferme in cima
+ * al tavolo, fuori dal giro delle giocate, ognuna nel suo riquadro
+ * tratteggiato.
+ */
+.tavolo-riquadro {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px dashed rgba(216, 180, 90, 0.7);
+  border-radius: 10px;
+  padding: 3px 6px;
+}
+
+.tavolo-riquadro .carta {
+  width: 32px;
+}
+
+/* Ogni parte del riquadro porta scritto cosa e': le coperte quante sono, la
+   scoperta che e' il trionfo, la carta che e' stata chiamata. */
+.riquadro-parte {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.monte-conteggio {
+  font-size: 10px;
+  color: var(--oro-tenue);
+  white-space: nowrap;
+}
+
+.riquadro-etichetta {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--oro);
+}
+
+.riquadro-parte .riquadro-etichetta {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/*
+ * Telefoni bassi: si stringono ancora i posti e si accorcia il centro, mai le
+ * carte. Il tavolo deve stare nello schermo senza scorrere.
+ */
+@media (max-height: 730px) {
+  .tavolo {
+    gap: 7px;
+  }
+
+  .tavolo .intestazione {
+    padding: 5px 10px;
+  }
+
+  .tavolo-scena {
+    gap: 4px;
+    padding: 5px;
+  }
+
+  .posto-tavolo {
+    font-size: 12px;
+    gap: 3px;
+  }
+
+  .dorso {
+    height: 22px;
+  }
+
+  .dorsi-in-colonna .dorso {
+    margin-top: -19px;
+  }
+
+  .posto-sinistra-1 .posto-nome,
+  .posto-sinistra-2 .posto-nome,
+  .posto-destra-1 .posto-nome,
+  .posto-destra-2 .posto-nome {
+    font-size: 11px;
+  }
+
+  .tavolo .zona-mano {
+    gap: 4px;
+  }
+
+  .tavolo .riga-mano {
+    font-size: 13px;
+  }
+
+  .tavolo .mano {
+    padding: 2px 2px 8px;
+  }
+
+  /* Su schermi bassi le due file si prendono lo spazio dal tavolo, non dalle
+     carte: si stringe il centro, che di suo e' solo aria attorno alle giocate. */
+  .tavolo .mano-a-file {
+    --gap-carte: 5px;
+    padding: 0;
+  }
+
+  /* I riquadri portano etichette e carte: su schermi bassi si stringe tutto,
+     ma resta leggibile cosa e' scoperto e quante coperte restano. */
+  .tavolo-riquadro {
+    gap: 4px;
+    padding: 2px 5px;
+  }
+
+  .tavolo-riquadro .carta {
+    width: 26px;
+  }
+
+  .monte-conteggio,
+  .riquadro-parte .riquadro-etichetta {
+    font-size: 9px;
+  }
+}
+
+.zona-mano {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Chi ha in mano quelle carte: in hotseat il telefono cambia mani, il tavolo no. */
+.riga-mano {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/*
+ * Attrezzo dell hotseat, non una regola del gioco: sta in disparte e si vede
+ * solo fra una smazzata e l altra.
+ */
+.punto-di-vista {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.punto-di-vista select {
+  background: var(--panno);
+  color: var(--testo);
+  border: 1px solid var(--panno-chiaro);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+/* ---- banner ---- */
+
+.banner {
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.banner-liscio {
+  background: #2b3b52;
+}
+
+.banner-amico {
+  background: var(--oro);
+  color: #1a1a1a;
+}
+
+.banner-presa {
+  background: #1f6f43;
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  z-index: 3;
+  white-space: nowrap;
+  padding: 6px 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+.banner-errore {
+  background: var(--rosso);
+  color: #fff;
+  margin-bottom: 10px;
+}
+
+/* ---- controlli ---- */
+
+.riga-bottoni {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.bottone-grande {
+  flex: 1 1 140px;
+  min-height: 52px;
+  border: none;
+  border-radius: 10px;
+  background: var(--oro);
+  color: #1a1a1a;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bottone-secondario {
+  background: var(--panno-chiaro);
+  color: var(--testo);
+  border: 1px solid var(--oro);
+}
+
+/* Il costo sta sopra il nome: prima quanto rischi, poi cosa dichiari. */
+.bottone-dichiarazione {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 62px;
+  background: var(--panno);
+  color: var(--testo);
+  border: 1px solid var(--oro);
+}
+
+.costo {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--oro);
+}
+
+.nome-dichiarazione {
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.bottone-piccolo {
+  border: 1px solid var(--panno-chiaro);
+  background: transparent;
+  color: var(--testo);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.bottone-grande:disabled,
+.bottone-piccolo:disabled,
+.scelta:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.scelta {
+  flex: 1 1 60px;
+  min-height: 46px;
+  border-radius: 8px;
+  border: 1px solid var(--oro);
+  background: transparent;
+  color: var(--testo);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.scelta-attiva {
+  background: var(--oro);
+  color: #1a1a1a;
+  font-weight: 700;
+}
+
+.contatore {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.lista {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.esito {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--oro);
+}
+
+/* ---- modale ---- */
+
+.modale {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+  z-index: 10;
+}
+
+.modale-contenuto {
+  background: var(--panno);
+  border: 1px solid var(--panno-chiaro);
+  border-radius: 12px;
+  padding: 14px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.basi {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.base {
+  background: var(--panno-chiaro);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
