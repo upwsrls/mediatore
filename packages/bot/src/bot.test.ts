@@ -10,7 +10,7 @@ import {
   tableConfig,
 } from '@mediatore/engine';
 import { describe, expect, it } from 'vitest';
-import { scegliCarta, trionfiDaProteggere } from './gioca.ts';
+import { scegliCarta, trionfiBastanoARipulire, trionfiDaProteggere } from './gioca.ts';
 import {
   cartaPiuAltaRimasta,
   carteNonAncoraViste,
@@ -19,6 +19,7 @@ import {
   trionfiAvversariRimasti,
   trionfiRimasti,
 } from './memoria.ts';
+import { scegliScarti } from './scarta.ts';
 import { possoVincere, rischioDiPerdere } from './valuta.ts';
 import { vistaDaStato } from './vista.ts';
 
@@ -45,12 +46,13 @@ function tavolo(args: {
   monte?: Card[];
   leader?: number;
   variant?: Variant;
+  trump?: Suit;
 }): HandState {
   const config = tableConfig(args.players, args.variant ?? 'monte');
   return createHandState({
     config,
     dealer: 0,
-    trump: TRIONFO,
+    trump: args.trump ?? TRIONFO,
     alliance: args.alliance,
     hands: args.mani,
     monte: args.monte ?? [],
@@ -391,6 +393,52 @@ describe('arrassarsi', () => {
     expect(scelta(state).suit).toBe(TRIONFO);
   });
 
+  it("con asso e cavallo e il re ancora fuori esce dall asso, che il cavallo il re se lo prende", () => {
+    // La maniglia e' nel monte, quindi sopra l'asso non gira piu' niente: non
+    // c'e' nulla da liberare e il cavallo non e' di comando, il re lo batte.
+    const state = tavolo({
+      players: 3,
+      alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+      mani: [
+        [
+          carta(TRIONFO, 'asso'),
+          carta(TRIONFO, 'cavallo'),
+          carta('coppe', 2),
+          carta('denari', 2),
+        ],
+        [carta('spade', 3), carta('spade', 4), carta('denari', 3), carta('denari', 4)],
+        [carta('spade', 5), carta('spade', 6), carta('denari', 5), carta('denari', 6)],
+      ],
+      monte: trionfiNelMonte('asso', 'cavallo', 're', 3),
+      leader: 0,
+    });
+
+    const vista = vistaDaStato(state, 0);
+    expect(cartaPiuAltaRimasta(vista, TRIONFO)?.id).toBe('bastoni-re');
+    expect(scelta(state).id).toBe('bastoni-asso');
+  });
+
+  it('con la maniglia in mano esce da una di comando, non dalla scartina di trionfo', () => {
+    // 7, asso e 3, e in giro girano ancora re e cavallo: il 3 non prende
+    // niente e non libera niente, quindi non esce.
+    const state = tavolo({
+      players: 3,
+      alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+      mani: [
+        [carta(TRIONFO, 7), carta(TRIONFO, 'asso'), carta(TRIONFO, 3), carta('coppe', 2)],
+        [carta('spade', 3), carta('spade', 4), carta('denari', 3), carta('denari', 4)],
+        [carta('spade', 5), carta('spade', 6), carta('denari', 5), carta('denari', 6)],
+      ],
+      monte: trionfiNelMonte(7, 'asso', 3, 're', 'cavallo'),
+      leader: 0,
+    });
+
+    for (const tiro of [0, 0.4, 0.99]) {
+      const scelto = scegliCarta(vistaDaStato(state, 0), () => tiro);
+      expect(['bastoni-7', 'bastoni-asso']).toContain(scelto.id);
+    }
+  });
+
   it("con asso, re, 5, 4 e 2 esce dal re: cosi' la maniglia esce e l asso resta firma", () => {
     const state = tavolo({
       players: 3,
@@ -443,6 +491,61 @@ describe('arrassarsi', () => {
     }
   });
 
+  it('con tre trionfi su dieci e avversari carichi non si arrassa: non li finirebbe', () => {
+    // Sette trionfi in giro e tre in mano: spesi tutti, agli altri ne
+    // resterebbero quattro. Il 7 di trionfo e' firma e la presa la farebbe,
+    // ma buttarlo adesso e' bruciare il comando su una presa vuota.
+    const state = tavolo({
+      players: 3,
+      alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+      mani: [
+        [
+          carta(TRIONFO, 7),
+          carta(TRIONFO, 'asso'),
+          carta(TRIONFO, 6),
+          carta('denari', 7),
+          carta('denari', 'asso'),
+        ],
+        [carta('spade', 3), carta('spade', 4), carta('coppe', 3), carta('coppe', 4), carta('coppe', 5)],
+        [carta('spade', 5), carta('spade', 6), carta('coppe', 6), carta('coppe', 7), carta('coppe', 2)],
+      ],
+      monte: [],
+      leader: 0,
+    });
+
+    const vista = vistaDaStato(state, 0);
+    expect(trionfiAvversariRimasti(vista)).toBe(7);
+    expect(trionfiBastanoARipulire(vista)).toBe(false);
+    expect(scelta(state).suit).not.toBe(TRIONFO);
+  });
+
+  it('con sei trionfi su dieci si arrassa: quelli bastano a finirli', () => {
+    const state = tavolo({
+      players: 3,
+      alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+      mani: [
+        [
+          carta(TRIONFO, 7),
+          carta(TRIONFO, 'asso'),
+          carta(TRIONFO, 're'),
+          carta(TRIONFO, 5),
+          carta(TRIONFO, 4),
+          carta(TRIONFO, 2),
+          carta('denari', 7),
+        ],
+        [carta('spade', 3), carta('spade', 4), carta('coppe', 3), carta('coppe', 4)],
+        [carta('spade', 5), carta('spade', 6), carta('coppe', 6), carta('coppe', 7)],
+      ],
+      monte: [],
+      leader: 0,
+    });
+
+    const vista = vistaDaStato(state, 0);
+    expect(trionfiAvversariRimasti(vista)).toBe(4);
+    expect(trionfiBastanoARipulire(vista)).toBe(true);
+    expect(scelta(state).suit).toBe(TRIONFO);
+  });
+
   it("sacrifica il re per far uscire la maniglia, e da li' l asso comanda", () => {
     // Non ha chiamato e non ha firme da incassare: si tira il re di coppe
     // sapendo che il 7 se lo prende, e l'asso resta padrone del palo.
@@ -459,6 +562,163 @@ describe('arrassarsi', () => {
     });
 
     expect(scelta(state).id).toBe('coppe-re');
+  });
+});
+
+/**
+ * La mano vera da cui vengono le due regole: chiamante a tre, trionfo coppe,
+ * sette bastoni in mano. Nella partita ha scartato tre bastoni e un denaro, si
+ * e' arrassato con tre trionfi su dieci e ha perso una mano che era vinta.
+ */
+describe('il caso vero del chiamante con sette bastoni', () => {
+  const ALLARGATA = [
+    'coppe-7', 'coppe-asso', 'coppe-3', 'coppe-6',
+    'denari-7', 'denari-asso', 'denari-6', 'denari-5', 'denari-2',
+    'bastoni-re', 'bastoni-cavallo', 'bastoni-fante', 'bastoni-6', 'bastoni-4',
+    'bastoni-3', 'bastoni-2',
+  ];
+
+  const dalMazzo = (id: string): Card => {
+    const trovata = MAZZO.find((c) => c.id === id);
+    if (trovata === undefined) throw new Error(`carta inesistente: ${id}`);
+    return trovata;
+  };
+
+  const scarti = scegliScarti(ALLARGATA.map(dalMazzo), 'coppe', 4, 3);
+
+  it('scarta tre denari e un bastone solo', () => {
+    expect(scarti.filter((c) => c.suit === 'denari')).toHaveLength(3);
+    expect(scarti.filter((c) => c.suit === 'bastoni')).toHaveLength(1);
+    expect(scarti.filter((c) => c.suit === 'coppe')).toHaveLength(0);
+  });
+
+  /**
+   * La smazzata come si e' giocata: si apre a spade con la maniglia, il
+   * chiamante di spade non ne ha e uccide col 3 di coppe. Poi la mano e' sua.
+   */
+  function dopoLUccisione(): HandState {
+    const restano = ALLARGATA.filter((id) => !scarti.some((c) => c.id === id)).map(dalMazzo);
+    const state = tavolo({
+      players: 3,
+      trump: 'coppe',
+      alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+      mani: [
+        restano,
+        [
+          carta('spade', 7), carta('spade', 'asso'), carta('spade', 're'), carta('spade', 'cavallo'),
+          carta('coppe', 're'), carta('coppe', 'fante'), carta('coppe', 5),
+          carta('denari', 're'), carta('denari', 'fante'),
+          carta('bastoni', 7), carta('bastoni', 'asso'), carta('bastoni', 5),
+        ],
+        [
+          carta('spade', 'fante'), carta('spade', 6), carta('spade', 5), carta('spade', 4),
+          carta('spade', 3), carta('spade', 2),
+          carta('coppe', 'cavallo'), carta('coppe', 4), carta('coppe', 2),
+          carta('denari', 'cavallo'), carta('denari', 4), carta('denari', 3),
+        ],
+      ],
+      monte: scarti,
+      leader: 1,
+    });
+    return giocate(state, [carta('spade', 7), carta('spade', 2)]);
+  }
+
+  it('la maniglia di spade la uccide col 3 di coppe, il trionfo piu basso che ha', () => {
+    const state = dopoLUccisione();
+    expect(state.turn).toBe(0);
+    expect(scelta(state).id).toBe('coppe-3');
+  });
+
+  it('e poi non si arrassa: con tre trionfi contro sei non ripulirebbe nessuno', () => {
+    const dopo = giocate(dopoLUccisione(), [carta('coppe', 3)]);
+    expect(dopo.turn).toBe(0);
+
+    const vista = vistaDaStato(dopo, 0);
+    expect(vista.mano.filter((c) => c.suit === 'coppe')).toHaveLength(3);
+    expect(trionfiAvversariRimasti(vista)).toBe(6);
+    expect(trionfiBastanoARipulire(vista)).toBe(false);
+    // Prima usciva col 7 di coppe, che era firma: due giri sprecati e gli
+    // avversari ancora col re e col fante.
+    expect(scegliCarta(vista, fisso).suit).not.toBe('coppe');
+  });
+});
+
+/**
+ * L'altra mano vera: trionfo bastoni, chiamante al posto 0. Alla sesta presa ha
+ * asso e cavallo di trionfo, fuori restano il re e il 3 e la maniglia e' gia'
+ * uscita. Nella partita e' aperto col cavallo, il re se l'e' preso, e con il
+ * comando se n'e' andata la mano.
+ */
+describe("il caso vero dell'asso e cavallo alla sesta presa", () => {
+  function finoAllaSestaPresa(): HandState {
+    const state = tavolo({
+      players: 3,
+      alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+      mani: [
+        [
+          carta(TRIONFO, 'asso'), carta(TRIONFO, 'cavallo'), carta(TRIONFO, 2),
+          carta('coppe', 6), carta('coppe', 5), carta('coppe', 4), carta('coppe', 3),
+          carta('coppe', 2),
+          carta('denari', 7), carta('denari', 4), carta('denari', 3), carta('denari', 2),
+        ],
+        [
+          carta(TRIONFO, 7), carta(TRIONFO, 're'), carta(TRIONFO, 3),
+          carta('spade', 7), carta('spade', 'asso'), carta('spade', 're'),
+          carta('spade', 'cavallo'), carta('spade', 'fante'),
+          carta('denari', 'asso'), carta('denari', 're'), carta('denari', 'cavallo'),
+          carta('denari', 'fante'),
+        ],
+        [
+          carta('spade', 6), carta('spade', 5), carta('spade', 4), carta('spade', 3),
+          carta('spade', 2),
+          carta('coppe', 7), carta('coppe', 'asso'), carta('coppe', 're'),
+          carta('coppe', 'cavallo'), carta('coppe', 'fante'),
+          carta('denari', 6), carta('denari', 5),
+        ],
+      ],
+      monte: [carta(TRIONFO, 'fante'), carta(TRIONFO, 6), carta(TRIONFO, 5), carta(TRIONFO, 4)],
+      leader: 0,
+    });
+
+    return giocate(state, [
+      // Apre a coppe: il posto 1 di coppe non ne ha e uccide con la maniglia.
+      carta('coppe', 2), carta(TRIONFO, 7), carta('coppe', 'fante'),
+      // Al giro di denari il chiamante e' obbligato a superare, e la mano torna sua.
+      carta('denari', 'asso'), carta('denari', 5), carta('denari', 7),
+      carta('denari', 2), carta('denari', 're'), carta('denari', 6),
+      carta('denari', 'cavallo'), carta('spade', 3), carta('denari', 3),
+      // L'asso di spade vale la pena di ucciderlo, e col 2 di trionfo basta.
+      carta('spade', 'asso'), carta('spade', 2), carta(TRIONFO, 2),
+    ]);
+  }
+
+  it("alla sesta presa apre con l'asso di trionfo, non col cavallo", () => {
+    const state = finoAllaSestaPresa();
+    expect(state.completedTricks).toHaveLength(5);
+    expect(state.turn).toBe(0);
+
+    const vista = vistaDaStato(state, 0);
+    expect(vista.mano.filter((c) => c.suit === TRIONFO).map((c) => c.id)).toEqual([
+      'bastoni-asso',
+      'bastoni-cavallo',
+    ]);
+    // Fuori restano il re e il 3, la maniglia e' uscita alla seconda presa.
+    expect(trionfiRimasti(vista).map((c) => c.id).sort()).toEqual(['bastoni-3', 'bastoni-re']);
+    expect(scelta(state).id).toBe('bastoni-asso');
+  });
+
+  it("e l'asso il re se lo porta via, cosi' il cavallo resta in mano come firma", () => {
+    const dopo = giocate(finoAllaSestaPresa(), [
+      carta(TRIONFO, 'asso'),
+      carta(TRIONFO, 're'),
+      carta('spade', 4),
+    ]);
+    const vista = vistaDaStato(dopo, 0);
+    expect(dopo.completedTricks[5]?.winner).toBe(0);
+    expect(trionfiRimasti(vista).map((c) => c.id)).toEqual(['bastoni-3']);
+    expect(eFirma(vista, carta(TRIONFO, 'cavallo'))).toBe(true);
+    // E dal cavallo si esce: si porta via il 3 e i trionfi degli altri finiscono.
+    expect(scelta(dopo).id).toBe('bastoni-cavallo');
   });
 });
 

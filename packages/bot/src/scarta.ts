@@ -1,5 +1,5 @@
 import type { Card, Suit } from '@mediatore/engine';
-import { RANKS, cardPoints, cardStrength } from '@mediatore/engine';
+import { RANKS, SUITS, cardPoints, cardStrength } from '@mediatore/engine';
 import type { Parametri } from './parametri.ts';
 import { PARAMETRI_DI_SERIE } from './parametri.ts';
 import { contaTrionfi } from './valutaMano.ts';
@@ -7,11 +7,25 @@ import { contaTrionfi } from './valutaMano.ts';
 /**
  * Cosa rimettere nel monte dopo averlo preso.
  *
- * Due cose sole, viste fare in tutte le mani chiamate: prima si svuota un
- * seme, perche' da li' in poi quel seme si taglia; poi si riempie con le
- * carte meno utili. I punti nel monte si accettano solo con tanti trionfi in
- * mano, perche' allora si conta di vincere l'ultima presa e di riprenderselo
- * intero: chi ha pochi trionfi quei punti non li rivede piu'.
+ * Prima si guarda la forma della mano, perche' i pali laterali non sono tutti
+ * uguali e non si scartano allo stesso modo. Ordinati per lunghezza:
+ *
+ * - il palo PIU' LUNGO non si accorcia. Quello e' una fonte di prese, non un
+ *   peso: dopo due o tre giri gli altri ne sono privi e tutto quello che
+ *   resta in mano prende da solo, fante e 6 compresi.
+ * - dai pali di MEZZA LUNGHEZZA si tolgono le scartine, lasciando le carte
+ *   di comando — maniglia e asso — il piu' possibile secche: cosi' quel palo
+ *   si esaurisce in fretta, si diventa privi e si puo' uccidere. Restare
+ *   lunghi dove si ha il comando espone il comando al taglio, perche' ogni
+ *   giro in piu' e' un'occasione perche' un avversario resti privo e uccida.
+ * - un palo corto si svuota del tutto, che da li' in poi si taglia: e' la
+ *   cosa vista fare in tutte le mani chiamate, e vale per ogni palo tranne
+ *   quello lungo.
+ *
+ * Poi si riempie con le carte meno utili. I punti nel monte si accettano solo
+ * con tanti trionfi in mano, perche' allora si conta di vincere l'ultima presa
+ * e di riprenderselo intero: chi ha pochi trionfi quei punti non li rivede
+ * piu'.
  *
  * Due regole non si violano mai: non si scartano trionfi, e non si scarta una
  * carta padrona di un seme che si tiene.
@@ -22,6 +36,40 @@ import { contaTrionfi } from './valutaMano.ts';
  * chi taglia o chi ha di piu'. Sono quelle che conviene mettere da parte.
  */
 const SEME_CORTO = 3;
+
+/** Di ogni palo ce ne sono dieci: quelle che non ho stanno in giro. */
+const CARTE_PER_PALO = 10;
+
+/**
+ * Da qui in su un palo laterale si guarda come una fonte, non come un peso.
+ * Sotto le quattro carte non c'e' niente da difendere: quello che avanza dopo
+ * i giri e' zero o quasi, e il conto dei giri, che da' per fornito ogni
+ * avversario, a quel punto e' troppo generoso per fidarsene.
+ */
+const PALO_LUNGO = 4;
+
+/** Quanto rende un palo: i giri per esaurirlo, e le prese che avanzano dopo. */
+export interface FonteDiPrese {
+  /** I giri che servono perche' di quel palo non ne resti a nessun altro. */
+  giri: number;
+  /** Le carte che restano in mano dopo quei giri: prese, una per carta. */
+  firme: number;
+}
+
+/**
+ * La stima che si fa al tavolo prima di scartare. Di ogni palo ce ne sono
+ * dieci: quelle che non ho stanno negli altri, e ogni giro che tiro ne toglie
+ * una a ciascuno di loro. Con sette bastoni su dieci e tre giocatori gli altri
+ * ne hanno tre in due: due giri e sono a secco, e le cinque carte che mi
+ * restano sono firme, anche il fante e il 6. Accorciare quel palo a quattro
+ * lascia una firma sola: la fonte e' distrutta.
+ */
+export function fonteDiPrese(quante: number, players: number): FonteDiPrese {
+  const inGiro = Math.max(0, CARTE_PER_PALO - quante);
+  const altri = Math.max(1, players - 1);
+  const giri = Math.min(quante, Math.ceil(inGiro / altri));
+  return { giri, firme: Math.max(0, quante - giri) };
+}
 
 /**
  * Quanti punti si accetta di lasciare nel monte, secondo i trionfi in mano.
@@ -73,12 +121,48 @@ function inutilita(carta: Card): number {
 }
 
 /**
- * I semi che si possono svuotare, dal piu' corto: quello e' l'ordine in cui
- * conviene provarci, perche' costa meno slot.
+ * Il palo lungo, quello da non accorciare: il piu' lungo dei laterali, purche'
+ * sia abbastanza lungo da rendere qualcosa dopo i giri che servono a ripulire
+ * gli altri. Con tre carte su dieci non resta niente in mano e non c'e' nessuna
+ * fonte da difendere; da quattro in su si', e piu' e' lungo piu' e' intoccabile.
+ *
+ * A pari lunghezza si tiene quello che vale di piu': stesse firme, piu' punti.
  */
-function semiDaSvuotare(carte: readonly Card[], trump: Suit): Suit[] {
+function paloDaNonAccorciare(
+  carte: readonly Card[],
+  trump: Suit,
+  players: number,
+): Suit | null {
   const delSeme = (seme: Suit): Card[] => carte.filter((carta) => carta.suit === seme);
-  const semi = [...new Set(carte.map((carta) => carta.suit))].filter((seme) => seme !== trump);
+  let fonte: Suit | null = null;
+  for (const seme of SUITS) {
+    if (seme === trump) continue;
+    const mie = delSeme(seme);
+    if (mie.length < PALO_LUNGO || fonteDiPrese(mie.length, players).firme === 0) continue;
+    if (fonte === null) {
+      fonte = seme;
+      continue;
+    }
+    const attuale = delSeme(fonte);
+    const meglio =
+      mie.length > attuale.length ||
+      (mie.length === attuale.length && punti(mie) > punti(attuale));
+    if (meglio) fonte = seme;
+  }
+  return fonte;
+}
+
+/**
+ * I semi che si possono svuotare, dal piu' corto: quello e' l'ordine in cui
+ * conviene provarci, perche' costa meno slot. Il palo lungo non e' della lista:
+ * il vuoto per uccidere si fa con un palo che non porta prese, non con la
+ * propria fonte.
+ */
+function semiDaSvuotare(carte: readonly Card[], trump: Suit, fonte: Suit | null): Suit[] {
+  const delSeme = (seme: Suit): Card[] => carte.filter((carta) => carta.suit === seme);
+  const semi = [...new Set(carte.map((carta) => carta.suit))].filter(
+    (seme) => seme !== trump && seme !== fonte,
+  );
   return semi.sort(
     (a, b) =>
       delSeme(a).length - delSeme(b).length || punti(delSeme(a)) - punti(delSeme(b)),
@@ -107,6 +191,8 @@ export function scegliScarti(
     return [...fuoriTrionfo, ...mancanti].slice(0, quanti);
   }
 
+  const fonte = paloDaNonAccorciare(fuoriTrionfo, trump, players);
+
   const scarti: Card[] = [];
   const scelta = (carta: Card): boolean => scarti.some((c) => c.id === carta.id);
   const restanti = (): Card[] => fuoriTrionfo.filter((carta) => !scelta(carta));
@@ -114,7 +200,7 @@ export function scegliScarti(
     manoAllargata.filter((carta) => carta.suit === seme && !scelta(carta)).length;
 
   // 1. Svuotare un seme, il piu' corto per primo: da li' in poi si taglia.
-  for (const seme of semiDaSvuotare(fuoriTrionfo, trump)) {
+  for (const seme of semiDaSvuotare(fuoriTrionfo, trump, fonte)) {
     const carte = restanti().filter((carta) => carta.suit === seme);
     if (carte.length === 0 || carte.length > quanti - scarti.length) continue;
     // Una padrona non si butta nemmeno per un seme vuoto: quella la presa la
@@ -130,7 +216,20 @@ export function scegliScarti(
   while (scarti.length < quanti) {
     const pool = restanti();
     const liberi = pool.filter((carta) => !ePadronaInMano(carta, manoAllargata));
-    const candidati = liberi.length > 0 ? liberi : pool;
+    const disponibili = liberi.length > 0 ? liberi : pool;
+
+    // Il palo lungo si tocca per ultimo: finche' fuori da lui c'e' qualcosa che
+    // sta nel budget si prende quella, e il palo lungo resta intero. Quando
+    // fuori restano solo punti che il budget non copre, allora si': una carta
+    // in meno nel palo lungo costa una firma, ma quei punti lasciati nel monte
+    // non li rivede piu' nessuno.
+    const dagliAltriPali =
+      fonte === null
+        ? []
+        : disponibili.filter(
+            (carta) => carta.suit !== fonte && cardPoints(carta.rank) <= budget,
+          );
+    const candidati = dagliAltriPali.length > 0 ? dagliAltriPali : disponibili;
 
     const daScaricare = candidati.filter(
       (carta) =>

@@ -1,7 +1,7 @@
 import type { Card, Suit } from '@mediatore/engine';
 import { cardPoints, createDeck } from '@mediatore/engine';
 import { describe, expect, it } from 'vitest';
-import { ePadronaInMano, puntiTollerati, scegliScarti } from './scarta.ts';
+import { ePadronaInMano, fonteDiPrese, puntiTollerati, scegliScarti } from './scarta.ts';
 
 const MAZZO = createDeck();
 
@@ -93,6 +93,48 @@ describe('lo scarto al monte', () => {
     expect(scarti).not.toContain('spade-asso');
   });
 
+  it('il palo da sette carte lo accorcia di una sola, il resto lo prende dal palo di mezzo', () => {
+    // Il caso vero: mano allargata del chiamante, trionfo coppe. Sette bastoni
+    // sono una fonte di prese, e sono i denari a dover perdere le scartine.
+    const allargata = mano([
+      'coppe-7', 'coppe-asso', 'coppe-3', 'coppe-6',
+      'denari-7', 'denari-asso', 'denari-6', 'denari-5', 'denari-2',
+      'bastoni-re', 'bastoni-cavallo', 'bastoni-fante', 'bastoni-6', 'bastoni-4',
+      'bastoni-3', 'bastoni-2',
+    ]);
+    const scarti = scegliScarti(allargata, 'coppe', 4, 3);
+    const restano = allargata.filter((carta) => !scarti.some((s) => s.id === carta.id));
+
+    expect(semi(scarti, 'bastoni')).toBe(1);
+    expect(semi(restano, 'bastoni')).toBe(6);
+    expect(semi(scarti, 'denari')).toBe(3);
+  });
+
+  it('dal palo da cinque manda nel monte le scartine e tiene maniglia e asso', () => {
+    const allargata = mano([
+      'coppe-7', 'coppe-asso', 'coppe-3', 'coppe-2',
+      'denari-7', 'denari-asso', 'denari-6', 'denari-5', 'denari-2',
+      'bastoni-re', 'bastoni-cavallo', 'bastoni-6', 'bastoni-4', 'bastoni-3', 'bastoni-2',
+      'spade-4',
+    ]);
+    const scarti = scegliScarti(allargata, 'coppe', 4, 3).map((carta) => carta.id).sort();
+    expect(scarti).toEqual(['denari-2', 'denari-5', 'denari-6', 'spade-4'].sort());
+  });
+
+  it("il palo piu' lungo non lo svuota per fare il vuoto, nemmeno quando e' l'unico che potrebbe", () => {
+    // Negli altri due pali c'e' una padrona e non si toccano: il vuoto si
+    // potrebbe fare solo coi quattro bastoni, ed e' proprio quello che rende.
+    const allargata = mano([
+      'coppe-7', 'coppe-asso', 'coppe-re', 'coppe-cavallo', 'coppe-fante', 'coppe-6', 'coppe-5',
+      'denari-7', 'denari-2',
+      'spade-7', 'spade-asso', 'spade-3',
+      'bastoni-2', 'bastoni-3', 'bastoni-4', 'bastoni-5',
+    ]);
+    const scarti = scegliScarti(allargata, 'coppe', 4, 3);
+    const restano = allargata.filter((carta) => !scarti.some((s) => s.id === carta.id));
+    expect(semi(restano, 'bastoni')).toBeGreaterThan(0);
+  });
+
   it('scarta esattamente quante gliene chiedono, e carte che ha davvero', () => {
     const allargata = mano([
       'coppe-7', 'coppe-asso', 'coppe-2', 'coppe-3',
@@ -106,6 +148,21 @@ describe('lo scarto al monte', () => {
       expect(new Set(scarti.map((c) => c.id)).size).toBe(quanti);
       expect(scarti.every((c) => allargata.some((a) => a.id === c.id))).toBe(true);
     }
+  });
+});
+
+describe('quanto rende un palo lungo', () => {
+  it('con sette carte su dieci due giri lo esauriscono, e restano cinque firme', () => {
+    expect(fonteDiPrese(7, 3)).toEqual({ giri: 2, firme: 5 });
+  });
+
+  it("piu' il palo e' corto, meno rende: a cinque carte due firme, a tre nessuna", () => {
+    expect(fonteDiPrese(5, 3)).toEqual({ giri: 3, firme: 2 });
+    expect(fonteDiPrese(3, 3)).toEqual({ giri: 3, firme: 0 });
+  });
+
+  it('con piu giocatori i giri sono meno, che a ogni giro ne esce una per ciascuno', () => {
+    expect(fonteDiPrese(6, 5).giri).toBeLessThan(fonteDiPrese(6, 3).giri);
   });
 });
 

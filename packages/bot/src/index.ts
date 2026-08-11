@@ -25,7 +25,12 @@ export {
   puntiInTavola,
   rischioDiPerdere,
 } from './valuta.ts';
-export { ePadrona, scegliCarta, trionfiDaProteggere } from './gioca.ts';
+export {
+  ePadrona,
+  scegliCarta,
+  trionfiBastanoARipulire,
+  trionfiDaProteggere,
+} from './gioca.ts';
 export type {
   Parametri,
   ParametriChiamata,
@@ -45,4 +50,5 @@ export {
   valoreDellaScoperta,
   valutaChiamata,
 } from './valutaMano.ts';
-export { ePadronaInMano, puntiTollerati, scegliScarti } from './scarta.ts';
+export type { FonteDiPrese } from './scarta.ts';
+export { ePadronaInMano, fonteDiPrese, puntiTollerati, scegliScarti } from './scarta.ts';

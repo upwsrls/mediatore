@@ -14,10 +14,19 @@ nelle varianti a monte (3, 4, 5 giocatori) e amico (5 giocatori).
   conta le basi gia' sue e la forza dei trionfi, non quanti trionfi ha, e le
   basi nei pali laterali le sconta quando non ha trionfi per difenderle:
   `packages/bot/src/chiamateVere.ts` tiene le 65 decisioni vere da cui e'
-  uscito quel criterio, e il test dice quanto ci resta vicino. Coi trionfi si
-  arrassa finche' gli avversari ne hanno, e smette appena sono a zero: da li'
-  incassa nei pali laterali, che senza trionfi in giro non li uccide piu'
-  nessuno.
+  uscito quel criterio, e il test dice quanto ci resta vicino. Nello scarto il
+  palo piu' lungo non lo accorcia — quello e' una fonte di prese, e dopo due o
+  tre giri tutto quello che ne resta in mano prende da solo — e le scartine le
+  prende dai pali di mezzo, lasciando maniglia e asso secchi. Coi trionfi si
+  arrassa finche' gli avversari ne hanno e finche' ne ha abbastanza da
+  finirli davvero: con tre trionfi contro sei non si arrassa, che sarebbe
+  bruciare il proprio comando su prese vuote. Ed esce da una carta che batte il
+  trionfo piu' alto ancora in giro, non da una piu' bassa: con asso e cavallo e
+  il re fuori esce l'asso, che il cavallo il re se lo porterebbe via. Sacrifica
+  la seconda solo quando sopra la sua piu' alta gira ancora qualcosa da far
+  uscire. Appena gli avversari sono a zero
+  smette e incassa nei pali laterali, che senza trionfi in giro non li uccide
+  piu' nessuno.
 - `packages/taratore` — cerca i numeri migliori per il bot facendogli giocare
   centinaia di migliaia di smazzate contro se stesso.
 - `apps/simulator` — simulatore da terminale: fuzzer massivo e modalita'

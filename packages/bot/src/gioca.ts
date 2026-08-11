@@ -110,19 +110,38 @@ export function ePadrona(vista: VistaDelBot, carta: Card): boolean {
 }
 
 /**
- * Sopra una carta di comando ci puo' stare una carta sola: chi ce l'ha la
- * spende per prendersi quella presa, e da li' in avanti comando io.
+ * I miei trionfi di comando: quelli che battono il trionfo piu' alto ancora in
+ * giro, cioe' quelli che la presa la vincono. Il metro sono le carte degli
+ * altri, non la propria scala interna: con asso e cavallo in mano e il re
+ * ancora fuori, di comando c'e' il solo asso, perche' il cavallo il re se lo
+ * porta via.
  */
-const SOPRA_UNA_DI_COMANDO = 1;
-
-/** I miei trionfi che vale la pena tirare: sopra ne resta al massimo uno. */
 function trionfiDiComando(vista: VistaDelBot, legali: readonly Card[]): Card[] {
-  const inGiro = trionfiRimasti(vista);
-  return legali.filter((carta) => {
-    if (carta.suit !== vista.trump) return false;
-    const sopra = inGiro.filter((altro) => cardStrength(altro.rank) > cardStrength(carta.rank));
-    return sopra.length <= SOPRA_UNA_DI_COMANDO;
-  });
+  return legali.filter((carta) => carta.suit === vista.trump && ePadrona(vista, carta));
+}
+
+/**
+ * La carta da sacrificare per far diventare firma quella sopra: si tira il re
+ * sapendo che la maniglia se lo prende, e da quel momento l'asso comanda il
+ * palo. Serve avere due carte alte di seguito, e sopra le mie deve restare
+ * quella sola: se ne girano due, il conto non torna piu' e si sta solo
+ * regalando una presa.
+ *
+ * Se sopra la mia piu' alta non gira piu' niente non c'e' nulla da liberare, e
+ * qui non c'e' nessun sacrificio da fare: quella prende da sola. E' l'errore
+ * del caso vero — asso e cavallo in mano, il re fuori e la maniglia gia'
+ * uscita: uscire dal cavallo non liberava l'asso, che vinceva comunque, e
+ * quella presa era un regalo.
+ */
+function daSacrificare(mie: readonly Card[], ignote: readonly Card[]): Card | null {
+  const scala = [...mie].sort((a, b) => cardStrength(b.rank) - cardStrength(a.rank));
+  const prima = scala[0];
+  const seconda = scala[1];
+  if (prima === undefined || seconda === undefined) return null;
+
+  const sopra = (carta: Card): number =>
+    ignote.filter((altra) => cardStrength(altra.rank) > cardStrength(carta.rank)).length;
+  return sopra(prima) === 1 && sopra(seconda) === 1 ? seconda : null;
 }
 
 /**
@@ -162,9 +181,36 @@ export function trionfiDaProteggere(mano: readonly Card[], trump: Suit): Card[] 
 }
 
 /**
+ * Se i propri trionfi bastano a ripulire davvero gli avversari.
+ *
+ * Il conto e' in giri. Ogni giro di trionfo costa un trionfo di mano e ne tira
+ * fuori uno di loro: su piu' di uno per giro non si conta, perche' chi di
+ * trionfo e' privo scarta e non paga niente. I giri che si riesce a tirare
+ * sono quindi i trionfi che si hanno, e i giri che servirebbero sono i trionfi
+ * che restano a loro.
+ *
+ * Se dopo aver speso tutti i propri gli avversari ne hanno ancora, quei giri
+ * non hanno ripulito nessuno: si sono bruciate le proprie carte di comando su
+ * prese vuote, e le carte laterali sono rimaste esposte al taglio come prima.
+ *
+ * Il caso vero: chiamante con 7, asso e 6 di trionfo, tre su dieci, gli altri
+ * sei. Ha tirato 7 e asso, gli avversari avevano ancora il re e il fante, e
+ * alla presa dopo l'asso di denari se l'e' preso il re di trionfo.
+ */
+export function trionfiBastanoARipulire(vista: VistaDelBot): boolean {
+  const giriNecessari = trionfiAvversariRimasti(vista);
+  const giriChePossoTirare = vista.mano.filter((carta) => carta.suit === vista.trump).length;
+  return giriChePossoTirare >= giriNecessari;
+}
+
+/**
  * Le carte laterali che comandano il loro palo ma che qualcuno puo' ancora
  * uccidere, perche' di quel palo si e' gia' visto che e' privo. Sono basi
  * con la data di scadenza: o si incassano adesso, o se le prende il taglio.
+ *
+ * E' un freno che vede solo i vuoti dimostrati, quelli in cui qualcuno non ha
+ * risposto a seme: nelle prime prese non ha ancora niente da vedere, e da
+ * solo non tiene. Quello che tiene sempre e' il conto dei trionfi.
  */
 function basiInPericolo(vista: VistaDelBot): Card[] {
   return vista.mano.filter((carta) => {
@@ -180,85 +226,109 @@ function basiInPericolo(vista: VistaDelBot): Card[] {
 }
 
 /**
+ * Quando tirare trionfo di propria iniziativa ha un senso. Vale per ogni
+ * trionfo tirato per scelta, firma compresa: sono gli stessi freni.
+ *
+ * Il primo vale per tutti: se gli avversari sono gia' a zero trionfi,
+ * continuare e' spendere il proprio comando su prese vuote, e loro intanto
+ * scartano quello che non serve e si tengono i punti. Da li' in poi si va a
+ * incassare nei pali laterali.
+ *
+ * Gli altri due riguardano il chiamante, perche' e' lui che si arrassa: chi
+ * non ha chiamato non sta ripulendo nessuno, tira il suo trionfo firma per
+ * fare la presa e basta.
+ *
+ * Il secondo, e viene prima di quello dopo, e' che i trionfi bastino a
+ * finirli: con pochi trionfi non li si ripulisce, e arrassarsi diventa un
+ * suicidio — si brucia il proprio comando su prese vuote e le carte laterali
+ * restano tagliabili come prima.
+ *
+ * Il terzo e' avere basi laterali che qualcuno puo' ancora tagliare: quelle
+ * si incassano prima, che ad arrassarsi si fa sempre in tempo.
+ */
+function convieneTirareTrionfo(vista: VistaDelBot): boolean {
+  if (trionfiAvversariRimasti(vista) === 0) return false;
+  if (!sonoIlChiamante(vista)) return true;
+  if (!trionfiBastanoARipulire(vista)) return false;
+  return basiInPericolo(vista).length === 0;
+}
+
+/**
  * Arrassarsi: tirare trionfo di propria iniziativa per farli uscire agli
  * altri. Lo fa il chiamante, perche' ogni giro tolto e' un taglio in meno
  * contro le sue basi; chi non ha chiamato non ha motivo di scoprirsi.
  *
- * Non e' un automatismo, e tre cose lo fermano.
+ * Oltre ai freni di sempre ne serve uno proprio: un trionfo solo non si tira,
+ * che poi non se ne ha piu'.
  *
- * La prima e' il punto di tutta la regola: se gli avversari sono gia' a zero
- * trionfi, continuare e' spendere il proprio comando su prese vuote, e loro
- * intanto scartano quello che non serve e si tengono i punti. Da li' in poi
- * si va a incassare nei pali laterali.
- *
- * La seconda e' non avere un trionfo di comando: si perderebbe la presa
- * senza far uscire niente di alto.
- *
- * La terza e' avere basi laterali che qualcuno puo' ancora tagliare: quelle
- * si incassano prima, che ad arrassarsi si fa sempre in tempo.
+ * E ci vuole una carta con cui uscire, che e' una di due cose: una che batte il
+ * trionfo piu' alto in giro, e allora la presa e' mia, oppure la seconda di due
+ * carte alte di seguito, e allora la si sacrifica per far uscire quella sopra e
+ * liberare la prima. Un trionfo che gli altri si portano via senza che liberi
+ * niente non e' un'arrassata, e' una presa regalata.
  */
 function siArrassa(vista: VistaDelBot, legali: readonly Card[]): boolean {
   if (!sonoIlChiamante(vista)) return false;
+  if (!convieneTirareTrionfo(vista)) return false;
 
-  const loro = trionfiAvversariRimasti(vista);
-  if (loro === 0) return false;
+  const miei = legali.filter((carta) => carta.suit === vista.trump);
+  if (miei.length < 2) return false;
 
-  const miei = vista.mano.filter((carta) => carta.suit === vista.trump).length;
-  if (miei < 2 || miei < loro) return false;
-
-  if (trionfiDiComando(vista, legali).length === 0) return false;
-  return basiInPericolo(vista).length === 0;
+  if (trionfiDiComando(vista, legali).length > 0) return true;
+  return daSacrificare(miei, trionfiRimasti(vista)) !== null;
 }
 
 /**
  * Con quale trionfo arrassarsi.
  *
- * Se sono tutti firme e' indifferente: sopra non c'e' piu' niente, esce
- * quello che capita. Altrimenti si esce con la piu' bassa fra quelle di
- * comando, non con la piu' alta: cosi' la maniglia degli altri esce a
- * prendersi quella, e da li' in poi le mie superiori sono firme. Con asso,
- * re, 5, 4 e 2 il giocatore vero esce dal re e si tiene l'asso.
+ * Prima cosa: se in mano c'e' qualcosa che batte il trionfo piu' alto ancora in
+ * giro, esce quello, e fra quelli la piu' bassa che basta — le superiori
+ * restano in mano, che sono firme e la presa la faranno quando serve. Con asso
+ * e cavallo e il re fuori esce l'asso: si porta via il re e il cavallo resta
+ * firma. Uscire dal cavallo sarebbe regalare la presa e il comando.
+ *
+ * Sacrificare — uscire con una carta piu' bassa perche' se la prenda quella
+ * degli altri — serve solo quando sopra la propria piu' alta gira ancora
+ * qualcosa da far uscire: allora si tira la seconda, la maniglia esce a
+ * prendersela e la prima diventa firma. Con asso, re, 5, 4 e 2 e la maniglia
+ * ancora fuori il giocatore vero esce dal re e si tiene l'asso.
+ *
+ * Se sono tutti firme e' indifferente: sopra non c'e' piu' niente, esce quello
+ * che capita.
  */
 function arrassata(vista: VistaDelBot, legali: readonly Card[], rng: Rng): Card {
   const miei = legali.filter((carta) => carta.suit === vista.trump);
-  const comando = trionfiDiComando(vista, legali);
-  if (comando.length === 0 || miei.every((carta) => eFirma(vista, carta))) {
+  if (miei.length > 0 && miei.every((carta) => eFirma(vista, carta))) {
     return scegliFra(miei, rng);
   }
-  return scegliFra(
-    migliori(comando, (carta) => -cardStrength(carta.rank)),
-    rng,
-  );
+
+  const comando = trionfiDiComando(vista, legali);
+  if (comando.length > 0) {
+    return scegliFra(
+      migliori(comando, (carta) => -cardStrength(carta.rank)),
+      rng,
+    );
+  }
+
+  return daSacrificare(miei, trionfiRimasti(vista)) ?? scegliFra(miei, rng);
 }
 
 /**
- * Sacrificare una carta per far uscire quella sopra, cosi' l'altra diventa
- * firma: si tira il re sapendo che la maniglia se lo prende, e da quel
- * momento l'asso comanda il palo. Serve avere due carte alte di seguito, e
- * sopra le mie deve restare quella sola: se ne girano due, il conto non
- * torna piu' e si sta solo regalando una presa.
+ * Il sacrificio nei pali laterali: nel trionfo il momento di tirare lo decide
+ * l'arrassata, che sa anche se agli altri i trionfi sono finiti.
  */
 function perRendereFirmaLAltra(vista: VistaDelBot, legali: readonly Card[]): Card | null {
   const ignote = carteNonAncoraViste(vista);
-  // Solo nei pali laterali: nel trionfo il momento di tirare lo decide
-  // l'arrassata, che sa anche se agli altri i trionfi sono finiti.
   const pali = [...new Set(legali.map((carta) => carta.suit))].filter(
     (palo) => palo !== vista.trump,
   );
 
   for (const palo of pali) {
-    const mie = legali
-      .filter((carta) => carta.suit === palo)
-      .sort((a, b) => cardStrength(b.rank) - cardStrength(a.rank));
-    const prima = mie[0];
-    const seconda = mie[1];
-    if (prima === undefined || seconda === undefined) continue;
-
-    const sopra = (carta: Card): number =>
-      ignote.filter(
-        (altra) => altra.suit === palo && cardStrength(altra.rank) > cardStrength(carta.rank),
-      ).length;
-    if (sopra(prima) === 1 && sopra(seconda) === 1) return seconda;
+    const scelta = daSacrificare(
+      legali.filter((carta) => carta.suit === palo),
+      ignote.filter((altra) => altra.suit === palo),
+    );
+    if (scelta !== null) return scelta;
   }
   return null;
 }
@@ -344,8 +414,12 @@ function apre(vista: VistaDelBot, legali: readonly Card[], rng: Rng): Card {
   // Il trionfo firma non lo uccide nessuno, e finche' gli altri i trionfi li
   // hanno ancora e' anche un giro tolto a loro. A zero trionfi in giro invece
   // si tiene: quella presa e' gia' sua, e la fara' quando le serve.
+  //
+  // Tirarlo e' arrassarsi, quindi passa dagli stessi freni: era da qui che il
+  // chiamante con tre trionfi su dieci se ne giocava due su prese vuote senza
+  // ripulire nessuno, perche' il freno lo aveva solo l'arrassata di sotto.
   const trionfiFirma = firme.filter((carta) => carta.suit === vista.trump);
-  if (trionfiFirma.length > 0 && trionfiAvversariRimasti(vista) > 0) {
+  if (trionfiFirma.length > 0 && convieneTirareTrionfo(vista)) {
     return scegliFra(
       migliori(trionfiFirma, (carta) => cardPoints(carta.rank)),
       rng,
