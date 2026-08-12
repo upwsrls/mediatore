@@ -696,6 +696,33 @@ button.carta:active {
   color: var(--oro-tenue);
 }
 
+/*
+ * A conteggio finito il tavolo riparte da solo: il numero che scende e' la
+ * cosa piu' importante della schermata, e si legge da lontano. Le cifre a
+ * larghezza fissa evitano che la riga si muova passando da 10 a 9.
+ */
+.conto-alla-rovescia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 2px solid var(--oro);
+  border-radius: 10px;
+  background: var(--panno-chiaro);
+  font-size: 15px;
+  color: var(--oro-tenue);
+}
+
+.conto-alla-rovescia strong {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--oro);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Avvisi di passaggio nella riga di stato: non devono rubare la scena. */
 .cappotto-in-corsa,
 .sotto-soglia {

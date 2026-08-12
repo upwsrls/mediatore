@@ -22,8 +22,9 @@ interface Props {
   session: Session;
   /** Null quando la smazzata e' finita senza essere giocata. */
   state: HandState | null;
-  onNuovaSmazzata: () => void;
-  onRicomincia: () => void;
+  /** I secondi che restano prima che la smazzata dopo parta da sola. */
+  secondiAllaRipartenza: number;
+  onEsci: () => void;
   onCambiaPuntoDiVista: (seat: number) => void;
 }
 
@@ -46,8 +47,8 @@ function Quote({ settlement, state }: { settlement: number[]; state: HandState |
 export function EndScreen({
   session,
   state,
-  onNuovaSmazzata,
-  onRicomincia,
+  secondiAllaRipartenza,
+  onEsci,
   onCambiaPuntoDiVista,
 }: Props): ReactElement {
   const [rivedi, setRivedi] = useState(false);
@@ -56,8 +57,8 @@ export function EndScreen({
     return (
       <FineScaduta
         session={session}
-        onNuovaSmazzata={onNuovaSmazzata}
-        onRicomincia={onRicomincia}
+        secondiAllaRipartenza={secondiAllaRipartenza}
+        onEsci={onEsci}
         onCambiaPuntoDiVista={onCambiaPuntoDiVista}
       />
     );
@@ -70,8 +71,15 @@ export function EndScreen({
   const dichiarazione = state.alliance.kind === 'monte' ? state.alliance : null;
   const { caller, friend } = schieramenti(state);
 
+  // Le prese si rivedono sopra il conteggio, ma il conto alla rovescia scorre
+  // anche qui: a zero si riparte comunque, che si stia guardando o no.
   if (rivedi) {
-    return <ReviewScreen state={state} onChiudi={() => setRivedi(false)} />;
+    return (
+      <>
+        <ContoAllaRovescia secondi={secondiAllaRipartenza} />
+        <ReviewScreen state={state} onChiudi={() => setRivedi(false)} />
+      </>
+    );
   }
 
   return (
@@ -146,16 +154,18 @@ export function EndScreen({
         <p className="nota">somma delle quote: {somma}</p>
       </div>
 
+      <ContoAllaRovescia secondi={secondiAllaRipartenza} />
+
       <div className="riga-bottoni">
-        <button type="button" className="bottone-grande" onClick={onNuovaSmazzata}>
-          Nuova smazzata
-        </button>
         <button
           type="button"
           className="bottone-grande bottone-secondario"
           onClick={() => setRivedi(true)}
         >
           Rivedi la smazzata
+        </button>
+        <button type="button" className="bottone-grande bottone-secondario" onClick={onEsci}>
+          Esci dal tavolo
         </button>
       </div>
       {/* Il posto si cambia solo qui, a smazzata chiusa: mai mentre si gioca.
@@ -167,14 +177,24 @@ export function EndScreen({
           onCambia={onCambiaPuntoDiVista}
         />
       )}
-      <button type="button" className="bottone-piccolo" onClick={onRicomincia}>
-        cambia tavolo
-      </button>
       <p className="nota">
         ha distribuito <PlayerName seat={session.dealer} state={state} />
       </p>
       <PartiteRegistrate />
     </section>
+  );
+}
+
+/**
+ * Il tavolo riparte da solo, e questo e' l'unico avviso che ne da': deve
+ * leggersi al primo sguardo, perche' i secondi che restano sono tutto quello
+ * che il giocatore puo' decidere in questa schermata.
+ */
+function ContoAllaRovescia({ secondi }: { secondi: number }): ReactElement {
+  return (
+    <p className="conto-alla-rovescia" role="timer">
+      tornerete al tavolo fra <strong>{secondi}</strong>
+    </p>
   );
 }
 
@@ -291,8 +311,8 @@ function Supplementi({ score, state }: { score: HandScore; state: HandState }): 
  */
 function FineScaduta({
   session,
-  onNuovaSmazzata,
-  onRicomincia,
+  secondiAllaRipartenza,
+  onEsci,
   onCambiaPuntoDiVista,
 }: Omit<Props, 'state'>): ReactElement {
   const caller = session.call.caller;
@@ -327,9 +347,11 @@ function FineScaduta({
         </p>
       </div>
 
+      <ContoAllaRovescia secondi={secondiAllaRipartenza} />
+
       <div className="riga-bottoni">
-        <button type="button" className="bottone-grande" onClick={onNuovaSmazzata}>
-          Nuova smazzata
+        <button type="button" className="bottone-grande bottone-secondario" onClick={onEsci}>
+          Esci dal tavolo
         </button>
       </div>
       {session.umano === null && (
@@ -339,9 +361,6 @@ function FineScaduta({
           onCambia={onCambiaPuntoDiVista}
         />
       )}
-      <button type="button" className="bottone-piccolo" onClick={onRicomincia}>
-        cambia tavolo
-      </button>
       <p className="nota">
         ha distribuito <PlayerName seat={session.dealer} state={null} />
       </p>

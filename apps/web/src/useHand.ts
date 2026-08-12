@@ -138,6 +138,13 @@ const CARTE_FERME_MS = 1500;
 const RACCOLTA_MS = 600;
 
 /**
+ * Quanto dura il conteggio finale prima che la smazzata dopo parta da sola.
+ * Il tavolo non aspetta nessuno: sono il tempo di leggere le quote, non di
+ * ripensarci, e non si allungano. Si tara solo da qui.
+ */
+export const SECONDI_PRIMA_DI_RIPARTIRE = 10;
+
+/**
  * Il seed non si chiede piu' al giocatore, ma resta il modo per riprodurre
  * una smazzata segnalata: per questo finisce in console.
  */
@@ -268,6 +275,11 @@ export interface UseHand {
   session: Session | null;
   error: string | null;
   pause: TrickPause | null;
+  /**
+   * I secondi che restano prima che il tavolo riparta da solo. Vale solo a
+   * smazzata finita: fuori da li' e' il conteggio pieno, mai mostrato.
+   */
+  secondiAllaRipartenza: number;
   start: (
     players: number,
     variant: Variant,
@@ -286,7 +298,6 @@ export interface UseHand {
   nessunoSeLaSente: () => void;
   scegliAmico: (card: Card) => void;
   gioca: (cardId: string) => void;
-  nuovaSmazzata: () => void;
   ricomincia: () => void;
   chiudiErrore: () => void;
 }
@@ -295,6 +306,9 @@ export function useHand(): UseHand {
   const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pause, setPause] = useState<TrickPause | null>(null);
+  const [secondiAllaRipartenza, setSecondiAllaRipartenza] = useState(
+    SECONDI_PRIMA_DI_RIPARTIRE,
+  );
 
   /**
    * Da quando la scelta e' davanti al giocatore. Riparte a ogni cambio di
@@ -634,6 +648,45 @@ export function useHand(): UseHand {
   }, [session]);
 
   /**
+   * Chi riparte deve conoscere l'ultima smazzata, ma il conto alla rovescia non
+   * deve dipendere da lei: se si rimettesse in moto a ogni cambio di sessione —
+   * cambiare posto, per esempio — i dieci secondi non finirebbero mai.
+   */
+  const riparti = useRef(nuovaSmazzata);
+  useEffect(() => {
+    riparti.current = nuovaSmazzata;
+  }, [nuovaSmazzata]);
+
+  /**
+   * Il conteggio finale dura quanto un conto alla rovescia, e poi il tavolo
+   * riparte da solo: nessuna pausa e nessun modo di allungarlo, come al tavolo
+   * vero, dove le carte si rimescolano mentre ancora si commenta. Il battito
+   * serve al numero a schermo, il tempo alla ripartenza: se si esce dal tavolo,
+   * o se lo schermo se ne va per qualsiasi ragione, muoiono insieme e non
+   * resta nessun timer a far nascere una smazzata senza tavolo.
+   *
+   * Il conto parte una volta per smazzata, e il seed e' quello che la
+   * distingue: il resto della sessione — il posto da cui si guarda, per dirne
+   * una — cambia senza rimettere in moto niente.
+   */
+  useEffect(() => {
+    if (session?.phase !== 'end') return undefined;
+    setSecondiAllaRipartenza(SECONDI_PRIMA_DI_RIPARTIRE);
+    const battito = setInterval(() => {
+      setSecondiAllaRipartenza((rimasti) => (rimasti > 0 ? rimasti - 1 : 0));
+    }, 1000);
+    const ripartenza = setTimeout(
+      () => riparti.current(),
+      SECONDI_PRIMA_DI_RIPARTIRE * 1000,
+    );
+    return () => {
+      clearInterval(battito);
+      clearTimeout(ripartenza);
+      setSecondiAllaRipartenza(SECONDI_PRIMA_DI_RIPARTIRE);
+    };
+  }, [session?.phase, session?.seed]);
+
+  /**
    * La regia dei bot: quando tocca a uno di loro si sceglie la mossa e la si
    * fa passare dagli stessi gesti dell'umano, dopo una pausa. Il tempo di
    * riflessione non e' un vezzo: un tavolo che risponde all'istante non
@@ -722,6 +775,7 @@ export function useHand(): UseHand {
     session,
     error,
     pause,
+    secondiAllaRipartenza,
     start,
     cambiaPuntoDiVista,
     cambiaCarteScoperte,
@@ -731,7 +785,6 @@ export function useHand(): UseHand {
     nessunoSeLaSente,
     scegliAmico,
     gioca,
-    nuovaSmazzata,
     ricomincia,
     chiudiErrore,
   };

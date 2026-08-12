@@ -140,6 +140,13 @@ di turno, sola, colonna e chi se la sente per chiunque e in qualsiasi momento.
 Chi ha disattivato le animazioni vede le carte comparire ai posti senza volo,
 allo stesso ritmo.
 
+A smazzata finita si legge il conteggio, e dopo `SECONDI_PRIMA_DI_RIPARTIRE`
+(`src/useHand.ts`) la smazzata dopo parte da sola, con la stessa compagnia e il
+mazziere che gira. Il conto alla rovescia sta a schermo e non si ferma: non c'e'
+niente da premere per continuare, e chi non vuole giocare la prossima esce dal
+tavolo e torna al setup. Il conto scorre anche mentre si rivedono le prese, e si
+annulla insieme al tavolo: nessun timer sopravvive all'uscita.
+
 I posti si fissano quando nasce la smazzata e non cambiano piu' fino alla fine:
 a cambiare e' solo l'evidenza di chi e' di turno, e sotto il tavolo compare la
 mano di chi tocca, con scritto a chi passare il telefono. Il punto di vista si

@@ -96,8 +96,8 @@ export function App(): ReactElement {
         <EndScreen
           session={session}
           state={state}
-          onNuovaSmazzata={hand.nuovaSmazzata}
-          onRicomincia={hand.ricomincia}
+          secondiAllaRipartenza={hand.secondiAllaRipartenza}
+          onEsci={hand.ricomincia}
           onCambiaPuntoDiVista={hand.cambiaPuntoDiVista}
         />
       )}
