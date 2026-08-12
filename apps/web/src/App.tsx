@@ -7,7 +7,6 @@ import { OpeningScreen } from './screens/OpeningScreen';
 import { SetupScreen } from './screens/SetupScreen';
 import { TableScreen } from './screens/TableScreen';
 import { WaitScreen } from './screens/WaitScreen';
-import { nomeGiocatore } from './labels';
 import { useHand } from './useHand';
 
 export function App(): ReactElement {
@@ -20,6 +19,17 @@ export function App(): ReactElement {
   const caller = session?.call.caller ?? null;
   const decideUnBot =
     session != null && session.umano !== null && caller !== null && caller !== session.umano;
+
+  // Il tavolo si apre appena distribuito e non si chiude piu' fino al gioco:
+  // le carte che arrivano, la chiamata e l'attesa di chi ha chiamato — che
+  // prende il monte o si cerca l'amico — sono la stessa scena. Se invece a
+  // scegliere e' chi sta davanti allo schermo ci vuole la sua schermata, che
+  // gli fa toccare le carte.
+  const alTavolo =
+    session !== null &&
+    (session.phase === 'distribuzione' ||
+      session.phase === 'call' ||
+      (decideUnBot && (session.phase === 'discard' || session.phase === 'friend')));
 
   return (
     <main className="app">
@@ -34,22 +44,12 @@ export function App(): ReactElement {
 
       {session === null && <SetupScreen onStart={hand.start} />}
 
-      {/* Le carte che arrivano e la chiamata sono la stessa scena: il tavolo
-          si apre appena distribuito e non si chiude piu' fino al gioco. */}
-      {session !== null && (session.phase === 'distribuzione' || session.phase === 'call') && (
+      {session !== null && alTavolo && (
         <DealingScreen session={session} onDecide={hand.decidi} />
       )}
 
-      {session !== null && session.phase === 'discard' && (
-        decideUnBot ? (
-          <WaitScreen
-            session={session}
-            titolo={`${nomeGiocatore(caller ?? 0)} prende il monte`}
-            nota="sta scegliendo cosa lasciare"
-          />
-        ) : (
-          <DiscardScreen session={session} onConferma={hand.confermaScarti} />
-        )
+      {session !== null && session.phase === 'discard' && !decideUnBot && (
+        <DiscardScreen session={session} onConferma={hand.confermaScarti} />
       )}
 
       {session !== null && session.phase === 'apertura' && (
@@ -70,16 +70,8 @@ export function App(): ReactElement {
         )
       )}
 
-      {session !== null && session.phase === 'friend' && (
-        decideUnBot ? (
-          <WaitScreen
-            session={session}
-            titolo={`${nomeGiocatore(caller ?? 0)} chiama l amico`}
-            nota="sta scegliendo la carta"
-          />
-        ) : (
-          <FriendScreen session={session} onScegli={hand.scegliAmico} />
-        )
+      {session !== null && session.phase === 'friend' && !decideUnBot && (
+        <FriendScreen session={session} onScegli={hand.scegliAmico} />
       )}
 
       {session !== null && session.phase === 'play' && state !== null && (

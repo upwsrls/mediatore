@@ -28,6 +28,8 @@ interface PostoProps {
   punti: number | null;
   /** Chi distribuisce, e solo mentre distribuisce: ruolo di un momento. */
   cartaro?: boolean;
+  /** Ha chiamato, ma la smazzata non e' ancora cominciata: vedi PlayerName. */
+  chiamante?: boolean;
   /** Le sue carte, quando si gioca a carte scoperte. Null: solo il mazzetto. */
   spiate: CartaEngine[] | null;
   players: number;
@@ -45,6 +47,7 @@ export function PostoTavolo({
   diTurno,
   punti,
   cartaro = false,
+  chiamante = false,
   spiate,
   players,
 }: PostoProps): ReactElement | null {
@@ -58,7 +61,7 @@ export function PostoTavolo({
       aria-current={diTurno ? 'true' : undefined}
     >
       <span className="posto-nome">
-        <PlayerName seat={seat} state={state} cartaro={cartaro} />
+        <PlayerName seat={seat} state={state} cartaro={cartaro} chiamante={chiamante} />
       </span>
       {spiate === null ? (
         <Dorsi quante={carte} verticale={diLato} />

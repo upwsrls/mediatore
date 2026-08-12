@@ -1071,6 +1071,18 @@ button.carta:active {
   font-size: 12px;
 }
 
+/*
+ * L'annuncio della chiamata sta un attimo in mezzo al tavolo, come una voce:
+ * si legge piu' della nota di passaggio perche' deve arrivare da sola, senza
+ * che nessuno la stia cercando.
+ */
+.annuncio-chiamata {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--oro-tenue);
+}
+
 /* Le prese si rivedono in fila, con il nome sotto ogni carta. */
 .presa-rivista {
   display: flex;

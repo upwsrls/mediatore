@@ -140,6 +140,14 @@ di turno, sola, colonna e chi se la sente per chiunque e in qualsiasi momento.
 Chi ha disattivato le animazioni vede le carte comparire ai posti senza volo,
 allo stesso ritmo.
 
+Se chi ha chiamato e' un bot, il monte e la carta dell'amico se li sbriga al
+tavolo: niente schermata d'attesa, si aspetta come si aspetta il turno di un
+giocatore. Al momento della chiamata una scritta la annuncia in mezzo al tavolo
+per un paio di secondi (`Uccio chiama`), poi sparisce da sola e resta l'oro sul
+nome del chiamante, che dalla chiamata arriva fino alla fine della smazzata.
+Quando invece a scartare o a chiamare l'amico e' chi sta davanti allo schermo le
+sue schermate restano quelle di prima: le carte le deve toccare lui.
+
 A smazzata finita si legge il conteggio, e dopo `SECONDI_PRIMA_DI_RIPARTIRE`
 (`src/useHand.ts`) la smazzata dopo parte da sola, con la stessa compagnia e il
 mazziere che gira. Il conto alla rovescia sta a schermo e non si ferma: non c'e'

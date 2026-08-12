@@ -1,6 +1,7 @@
 import type { HandState } from '@mediatore/engine';
 import type { ReactElement } from 'react';
 import { nomeCompatto, nomeGiocatore } from '../labels';
+import type { Ruolo } from '../roles';
 import { etichettaRuolo, ruoloDi } from '../roles';
 
 interface Props {
@@ -11,6 +12,12 @@ interface Props {
   compatto?: boolean;
   /** Chi distribuisce, solo durante la distribuzione: ruolo di un momento. */
   cartaro?: boolean;
+  /**
+   * Ha chiamato, ma la smazzata non e' ancora cominciata e non c'e' nessuno
+   * stato da cui leggere le squadre: fra la chiamata e la prima carta questo
+   * e' l'unico modo di dire che l'evidenza gli tocca gia'.
+   */
+  chiamante?: boolean;
 }
 
 /**
@@ -22,8 +29,10 @@ export function PlayerName({
   state,
   compatto = false,
   cartaro = false,
+  chiamante = false,
 }: Props): ReactElement {
-  const ruolo = state === null ? 'neutro' : ruoloDi(seat, state);
+  const ruolo: Ruolo =
+    state === null ? (chiamante ? 'chiamante' : 'neutro') : ruoloDi(seat, state);
   const etichetta = etichettaRuolo(ruolo);
 
   return (

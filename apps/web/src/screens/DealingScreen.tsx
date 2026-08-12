@@ -1,7 +1,7 @@
-import type { CallAction, Card as CartaEngine } from '@mediatore/engine';
+import type { CallAction, CallState, Card as CartaEngine } from '@mediatore/engine';
 import { currentCaller } from '@mediatore/engine';
 import type { CSSProperties, ReactElement } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from '../components/Card';
 import { PlayerName } from '../components/PlayerName';
 import { SuitIcon } from '../components/SuitIcon';
@@ -22,8 +22,29 @@ interface Props {
 }
 
 /**
- * Il tavolo prima del gioco: le carte che arrivano e la chiamata che si fa
- * subito dopo, senza cambiare schermata. E' lo stesso tavolo di quando si
+ * Quanto resta a schermo l'annuncio della chiamata. Al tavolo si dice a voce
+ * alta una volta e poi si sta al gioco: quel che deve restare — chi ha
+ * chiamato — resta scritto in oro sul suo nome.
+ */
+const ANNUNCIO_MS = 2000;
+
+/**
+ * L'annuncio della chiamata: il nome e cosa ha detto. Prima che la chiamata si
+ * chiuda non c'e' niente da annunciare.
+ */
+function annuncioDellaChiamata(call: CallState): string | null {
+  if (call.caller === null) return null;
+  const nome = nomeGiocatore(call.caller);
+  const chiamata = call.chiamata ?? 'normale';
+  return chiamata === 'normale'
+    ? `${nome} chiama`
+    : `${nome}: ${NOMI_CHIAMATA[chiamata].toUpperCase()}`;
+}
+
+/**
+ * Il tavolo prima del gioco: le carte che arrivano, la chiamata che si fa
+ * subito dopo e l'attesa di chi ha chiamato, che prende il monte o si cerca
+ * l'amico. Tutto senza cambiare schermata. E' lo stesso tavolo di quando si
  * gioca — stessi posti, stessa mano in due file — con in mezzo il mazzo
  * invece delle giocate e sotto i bottoni della chiamata invece delle carte
  * da giocare.
@@ -71,6 +92,22 @@ export function DealingScreen({ session, onDecide }: Props): ReactElement {
   const scoperta = session.scoperta;
   const chiDichiara = session.umano ?? dichiarante ?? diTurno ?? session.puntoDiVista;
 
+  // Chi ha chiamato sceglie gli scarti o l'amico: al tavolo si resta seduti e
+  // si aspetta, come si aspetta il turno di chiunque altro. Delle sue carte
+  // non trapela niente, perche' qui sotto c'e' sempre e solo la propria mano.
+  const chiamante = session.call.caller;
+  const annuncio = annuncioDellaChiamata(session.call);
+  const [annunciando, setAnnunciando] = useState(false);
+  useEffect(() => {
+    if (annuncio === null) {
+      setAnnunciando(false);
+      return undefined;
+    }
+    setAnnunciando(true);
+    const timer = setTimeout(() => setAnnunciando(false), ANNUNCIO_MS);
+    return () => clearTimeout(timer);
+  }, [annuncio]);
+
   const sedia = (posizione: Posizione): ReactElement | null => {
     const seat = postoDi(posizione);
     return (
@@ -85,6 +122,9 @@ export function DealingScreen({ session, onDecide }: Props): ReactElement {
         // Il cartaro si vede finche' distribuisce: finito il giro il suo
         // ruolo e' esaurito e l'unica evidenza torna a essere il turno.
         cartaro={distribuendo && seat === session.dealer}
+        // L'oro sul chiamante si accende appena chiama e non si spegne piu':
+        // da qui passa alla schermata del gioco, che lo legge dalle squadre.
+        chiamante={seat === chiamante}
         spiate={null}
         players={players}
       />
@@ -163,12 +203,14 @@ export function DealingScreen({ session, onDecide }: Props): ReactElement {
                 />
               )}
             </div>
+          ) : diTurno !== null ? (
+            <p className="nota nota-centro">
+              chiama <PlayerName seat={diTurno} state={null} />
+            </p>
           ) : (
-            diTurno !== null && (
-              <p className="nota nota-centro">
-                chiama <PlayerName seat={diTurno} state={null} />
-              </p>
-            )
+            // Detto una volta, il tempo di sentirlo, e poi via: chi ha chiamato
+            // resta scritto in oro sul suo nome, che e' il posto giusto.
+            annunciando && <p className="nota-centro annuncio-chiamata compare">{annuncio}</p>
           )}
         </div>
 
