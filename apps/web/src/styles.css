@@ -359,7 +359,8 @@ button.carta:active {
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
 }
 
-.blocco-scoperta {
+/* Quello che compare a distribuzione finita: il monte, e sotto la chiamata. */
+.compare {
   animation: comparsa 400ms ease;
 }
 
@@ -377,7 +378,7 @@ button.carta:active {
   .giocatore {
     transition: none;
   }
-  .blocco-scoperta {
+  .compare {
     animation: none;
   }
 }
@@ -427,21 +428,163 @@ button.carta:active {
   padding: 10px 12px;
 }
 
-/* Le carte coperte si sovrappongono come un mazzetto in mano. */
-.mazzetto {
-  display: flex;
+/*
+ * Prima del gioco in mezzo al tavolo non ci sono giocate, solo il mazzo: il
+ * centro puo' stringersi, e l'altezza che avanza va ai bottoni della chiamata
+ * senza far scorrere niente.
+ */
+.tavolo-prima-del-gioco .tavolo-scena {
+  --centro: clamp(96px, 12vh, 130px);
 }
 
-.mazzetto .carta {
-  width: 26px;
-  margin-left: -14px;
+/*
+ * Il mazzo sta in mezzo al tavolo e ne esce una carta alla volta. Le tre
+ * ombre sfalsate sotto al dorso bastano a farlo sembrare un mazzo e non una
+ * carta sola appoggiata li'.
+ */
+.mazzo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  line-height: 0;
 }
 
-.mazzetto .carta:first-child {
-  margin-left: 0;
+.mazzo-dorso {
+  display: block;
+  width: 34px;
+  height: 55px;
+  border-radius: 5px;
+  border: 1px solid var(--carta-bordo);
+  background-size: cover;
+  background-position: center;
+  box-shadow:
+    2px 2px 0 -1px var(--carta-fondo),
+    2px 2px 0 var(--carta-bordo),
+    4px 4px 0 -1px var(--carta-fondo),
+    4px 4px 0 var(--carta-bordo);
+}
+
+/*
+ * La carta che vola al suo posto. Si spegne mentre arriva perche' intanto il
+ * mazzetto di chi la riceve e' gia' cresciuto di un dorso: quello che si vede
+ * e' il tragitto, non la carta che si posa. Ogni carta e' un elemento nuovo,
+ * quindi il volo riparte da solo a ogni giro di mano.
+ */
+.carta-in-volo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 49px;
+  border-radius: 4px;
+  border: 1px solid var(--carta-bordo);
+  background-size: cover;
+  background-position: center;
+  animation: volo-della-carta var(--volo-ms, 120ms) ease-out forwards;
+}
+
+@keyframes volo-della-carta {
+  from {
+    transform: translate(-50%, -50%) scale(0.95);
+    opacity: 1;
+  }
+  /* Si spegne solo sul finire: per tutto il tragitto deve vedersi bene. */
+  65% {
+    opacity: 1;
+  }
+  to {
+    transform: translate(calc(-50% + var(--volo-x, 0px)), calc(-50% + var(--volo-y, 0px)))
+      scale(0.6);
+    opacity: 0;
+  }
+}
+
+/* Verso quale sedia: dal centro del tavolo, che e' da dove parte il volo. */
+.volo-verso-destra-1 {
+  --volo-x: 145px;
+  --volo-y: 42px;
+}
+
+.volo-verso-destra-2 {
+  --volo-x: 145px;
+  --volo-y: -42px;
+}
+
+.volo-verso-sinistra-1 {
+  --volo-x: -145px;
+  --volo-y: 42px;
+}
+
+.volo-verso-sinistra-2 {
+  --volo-x: -145px;
+  --volo-y: -42px;
+}
+
+.volo-verso-alto {
+  --volo-y: -85px;
+}
+
+.volo-verso-basso {
+  --volo-y: 95px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Niente volo: le carte compaiono ai posti, allo stesso ritmo di prima. */
+  .carta-in-volo {
+    display: none;
+  }
 }
 
 /* ---- dichiarazioni speciali ---- */
+
+/*
+ * La chiamata si fa al tavolo, sotto la mano: i bottoni compaiono a carte
+ * finite e spariscono appena qualcuno chiama. Devono starci senza far
+ * scorrere niente, quindi sono piu' bassi di quelli di una schermata sua.
+ */
+.chiamata-al-tavolo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Mentre le carte arrivano il posto e' gia' preso, ma non c'e' ancora niente
+   da premere: nemmeno per chi naviga a tastiera o con lo schermo che legge. */
+.chiamata-in-attesa {
+  visibility: hidden;
+}
+
+.chiamata-al-tavolo .bottone-grande {
+  min-height: 46px;
+  font-size: 16px;
+}
+
+/* Le tre speciali stanno su una riga sola: il costo sopra, il nome sotto. */
+.riga-speciali {
+  flex-wrap: nowrap;
+}
+
+.riga-speciali .bottone-dichiarazione {
+  flex: 1 1 0;
+  min-height: 44px;
+  padding: 0 4px;
+}
+
+.riga-speciali .costo {
+  font-size: 11px;
+}
+
+.riga-speciali .nome-dichiarazione {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.nota-dichiarazioni {
+  font-size: 11px;
+}
 
 /* Riga di servizio dell hotseat: col server ognuno avra' il suo schermo. */
 .riga-dichiara {
@@ -1131,6 +1274,32 @@ button.carta:active {
   .monte-conteggio,
   .riquadro-parte .riquadro-etichetta {
     font-size: 9px;
+  }
+
+  /* La chiamata si stringe come il resto: il tavolo non deve scorrere
+     nemmeno mentre ci sono i bottoni sotto la mano. */
+  .chiamata-al-tavolo {
+    gap: 4px;
+  }
+
+  .chiamata-al-tavolo .bottone-grande {
+    min-height: 42px;
+    font-size: 15px;
+  }
+
+  .riga-speciali .bottone-dichiarazione {
+    min-height: 38px;
+  }
+
+  /* Su schermi bassi la regola scritta e' la prima cosa a cui rinunciare:
+     i bottoni si capiscono da soli. */
+  .nota-dichiarazioni {
+    display: none;
+  }
+
+  .mazzo-dorso {
+    width: 30px;
+    height: 48px;
   }
 }
 

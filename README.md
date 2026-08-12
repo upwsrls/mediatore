@@ -124,10 +124,21 @@ pnpm --filter @mediatore/web test      # i moduli puri dell'app, per esempio i p
 ```
 
 Il tavolo si guarda da un posto solo, il punto di vista, che sta in basso: gli
-altri gli si dispongono intorno partendo dalla sua sinistra in senso antiorario,
-cioe' nell'ordine di gioco. Chi finisce dove lo decide `src/posti.ts`, che e' una
+altri gli si dispongono intorno partendo dalla sua destra e proseguendo in senso
+antiorario, cioe' nell'ordine di gioco, cosi' l'evidenza del turno gira a schermo
+come gira al tavolo. Chi finisce dove lo decide `src/posti.ts`, che e' una
 funzione pura e ha i suoi test: le tre disposizioni sono quelle da tre, quattro e
 cinque giocatori.
+
+Dal setup si apre direttamente il tavolo: le carte volano dal mazzo ai giocatori
+una alla volta, in senso antiorario dal primo di mano, a `CARTA_DISTRIBUITA_MS`
+l'una (`src/distribuzione.ts`, che sa solo l'ordine e il ritmo: le mani le ha
+gia' fatte l'engine). Sono poco piu' di quattro secondi a ogni tavolo, e non si
+saltano. Finito il giro compaiono il monte con la carta scoperta e i bottoni
+della chiamata, sotto la mano, sullo stesso tavolo: chiamata normale per chi e'
+di turno, sola, colonna e chi se la sente per chiunque e in qualsiasi momento.
+Chi ha disattivato le animazioni vede le carte comparire ai posti senza volo,
+allo stesso ritmo.
 
 I posti si fissano quando nasce la smazzata e non cambiano piu' fino alla fine:
 a cambiare e' solo l'evidenza di chi e' di turno, e sotto il tavolo compare la

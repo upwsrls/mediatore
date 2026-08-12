@@ -6,15 +6,15 @@ import { Card } from '../components/Card';
 import { PlayerName } from '../components/PlayerName';
 import { StatusLine } from '../components/StatusLine';
 import { SuitIcon } from '../components/SuitIcon';
-import { DORSO } from '../carte/immagini';
+import { MonteInTavola, PostoTavolo } from '../components/Tavolo';
 import { chiamataDi } from '../chiamate';
 import { SEMI, motivoNonGiocabile, nomeGiocatore, obbligoCorrente, puntiCorrenti } from '../labels';
 import { cartePerFila, postiDellaMano } from '../mano';
 import { ordinaCarte, secondoOrdine } from '../ordine';
 import type { Posizione } from '../posti';
-import { disposizione, eDiLato, inclinazione } from '../posti';
+import { disposizione, inclinazione } from '../posti';
 import { cartaChiamata, schieramenti } from '../roles';
-import { chiTieneLaCarta, ventaglioDelPosto } from '../spia';
+import { chiTieneLaCarta } from '../spia';
 import type { Session, TrickPause } from '../useHand';
 
 interface Props {
@@ -108,6 +108,24 @@ export function TableScreen({
 
   const inTavola = pause !== null ? pause.cards : state.currentTrick.plays;
 
+  // Ogni sedia del tavolo si monta allo stesso modo: qui dentro si guarda chi
+  // ci sta seduto, fuori resta solo la pianta del tavolo.
+  const sedia = (posizione: Posizione): ReactElement | null => {
+    const seat = postoDi(posizione);
+    return (
+      <PostoTavolo
+        seat={seat}
+        posizione={posizione}
+        state={state}
+        carte={state.hands[seat]?.length ?? 0}
+        diTurno={seat === state.turn}
+        punti={punti[seat] ?? 0}
+        spiate={spiate(seat)}
+        players={session.config.players}
+      />
+    );
+  };
+
   // Due avvisi brevi su una riga sola: il tavolo ha bisogno dell'altezza.
   const noteMonte = [
     chiamata === 'sola' ? 'nella sola non si scambia' : null,
@@ -152,20 +170,8 @@ export function TableScreen({
 
       <div className={spia ? 'tavolo-scena tavolo-spiato' : 'tavolo-scena'}>
         <div className="lato lato-sinistro">
-          <Posto
-            seat={postoDi('sinistra-2')}
-            posizione="sinistra-2"
-            state={state}
-            punti={punti}
-            spiate={spiate(postoDi('sinistra-2'))}
-          />
-          <Posto
-            seat={postoDi('sinistra-1')}
-            posizione="sinistra-1"
-            state={state}
-            punti={punti}
-            spiate={spiate(postoDi('sinistra-1'))}
-          />
+          {sedia('sinistra-2')}
+          {sedia('sinistra-1')}
         </div>
 
         <div className="fila-alto">
@@ -177,13 +183,7 @@ export function TableScreen({
             />
           )}
           {annunciata !== null && <CartaChiamata carta={annunciata} chiLaTiene={chiHaLAmico} />}
-          <Posto
-            seat={postoDi('alto')}
-            posizione="alto"
-            state={state}
-            punti={punti}
-            spiate={spiate(postoDi('alto'))}
-          />
+          {sedia('alto')}
         </div>
 
         <div className="tavolo-centro">
@@ -220,31 +220,11 @@ export function TableScreen({
         </div>
 
         <div className="lato lato-destro">
-          <Posto
-            seat={postoDi('destra-2')}
-            posizione="destra-2"
-            state={state}
-            punti={punti}
-            spiate={spiate(postoDi('destra-2'))}
-          />
-          <Posto
-            seat={postoDi('destra-1')}
-            posizione="destra-1"
-            state={state}
-            punti={punti}
-            spiate={spiate(postoDi('destra-1'))}
-          />
+          {sedia('destra-2')}
+          {sedia('destra-1')}
         </div>
 
-        <div className="fila-basso">
-          <Posto
-            seat={postoDi('basso')}
-            posizione="basso"
-            state={state}
-            punti={punti}
-            spiate={spiate(postoDi('basso'))}
-          />
-        </div>
+        <div className="fila-basso">{sedia('basso')}</div>
 
         {/* L annuncio dura un attimo: si appoggia sopra il tavolo invece di
             aprirsi una riga tutta sua, che spingerebbe giu' la mano. */}
@@ -328,152 +308,6 @@ export function TableScreen({
         <ModaleMonte state={state} onChiudi={() => setMonteAperto(false)} />
       )}
     </section>
-  );
-}
-
-interface PostoProps {
-  /** -1 quando quel posto del tavolo non e' occupato: a tre nessuno sta in alto. */
-  seat: number;
-  posizione: Posizione;
-  state: HandState;
-  punti: number[];
-  /** Le sue carte, quando si gioca a carte scoperte. Null: solo il mazzetto. */
-  spiate: CartaEngine[] | null;
-}
-
-/**
- * Un posto a tavola: nome, quante carte gli restano e a che punto sta. Chi e'
- * di turno si riconosce dal bordo acceso, non solo dal fatto che sta in basso.
- */
-function Posto({ seat, posizione, state, punti, spiate }: PostoProps): ReactElement | null {
-  if (seat < 0) return null;
-
-  const diTurno = seat === state.turn;
-  const carte = state.hands[seat]?.length ?? 0;
-  const diLato = eDiLato(posizione);
-
-  return (
-    <div
-      className={`posto-tavolo posto-${posizione}${diTurno ? ' posto-turno' : ''}`}
-      aria-current={diTurno ? 'true' : undefined}
-    >
-      <span className="posto-nome">
-        <PlayerName seat={seat} state={state} />
-      </span>
-      {spiate === null ? (
-        <Dorsi quante={carte} verticale={diLato} />
-      ) : (
-        <ManoSpiata carte={spiate} posizione={posizione} players={state.config.players} />
-      )}
-      <span className="posto-punti">{punti[seat] ?? 0}</span>
-    </div>
-  );
-}
-
-/**
- * Le carte di un bot, scoperte accanto al suo posto. Restano larghe abbastanza
- * da riconoscersi: quando non ci starebbero tutte si accavallano a ventaglio,
- * come una mano tenuta stretta, invece di rimpicciolirsi fino a sparire.
- */
-function ManoSpiata({
-  carte,
-  posizione,
-  players,
-}: {
-  carte: CartaEngine[];
-  posizione: Posizione;
-  players: number;
-}): ReactElement {
-  const { larghezza, ingombro, passo, inColonna } = ventaglioDelPosto(
-    posizione,
-    players,
-    carte.length,
-  );
-
-  return (
-    <span
-      className={inColonna ? 'mano-spiata mano-spiata-in-colonna' : 'mano-spiata'}
-      style={
-        {
-          '--larghezza-spiata': `${larghezza}px`,
-          '--ingombro-spiato': `${ingombro}px`,
-          '--passo-spiato': `${passo}px`,
-        } as CSSProperties
-      }
-    >
-      {carte.map((carta) => (
-        <Card key={carta.id} card={carta} />
-      ))}
-    </span>
-  );
-}
-
-/** Le carte che restano in mano a un altro: si contano, non si guardano. */
-function Dorsi({ quante, verticale }: { quante: number; verticale: boolean }): ReactElement {
-  return (
-    <span
-      className={verticale ? 'dorsi dorsi-in-colonna' : 'dorsi'}
-      aria-label={`${quante} carte in mano`}
-    >
-      {Array.from({ length: quante }, (_, i) => (
-        <span key={i} className="dorso" style={{ backgroundImage: `url(${DORSO})` }} />
-      ))}
-    </span>
-  );
-}
-
-/**
- * Il monte sul tavolo: sta in cima, fuori dal giro delle carte giocate e
- * dentro un riquadro tratteggiato suo, cosi' non lo si scambia mai per una
- * giocata. La carta che ha girato il trionfo resta scoperta li' per tutta la
- * smazzata; le altre si contano soltanto.
- */
-function MonteInTavola({
-  scoperta,
-  coperte,
-  spiate,
-}: {
-  scoperta: CartaEngine | null;
-  coperte: CartaEngine[];
-  /** A carte scoperte anche il monte del chiamante si guarda. */
-  spiate: boolean;
-}): ReactElement {
-  const conteggio = `${coperte.length} ${coperte.length === 1 ? 'carta coperta' : 'carte coperte'}`;
-
-  return (
-    <div className="tavolo-riquadro">
-      <span className="riquadro-etichetta">monte</span>
-
-      {coperte.length > 0 && (
-        <span className="riquadro-parte" aria-label={spiate ? 'monte scoperto' : conteggio}>
-          {spiate ? (
-            <span className="monte-spiato">
-              {coperte.map((carta) => (
-                <Card key={carta.id} card={carta} />
-              ))}
-            </span>
-          ) : (
-            <span className="dorsi">
-              {coperte.map((carta) => (
-                <span
-                  key={carta.id}
-                  className="dorso"
-                  style={{ backgroundImage: `url(${DORSO})` }}
-                />
-              ))}
-            </span>
-          )}
-          <span className="monte-conteggio">{spiate ? 'sotto il monte' : conteggio}</span>
-        </span>
-      )}
-
-      {scoperta !== null && (
-        <span className="riquadro-parte">
-          <Card card={scoperta} size="piccola" />
-          <span className="riquadro-etichetta">trionfo</span>
-        </span>
-      )}
-    </div>
   );
 }
 

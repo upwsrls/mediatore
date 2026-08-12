@@ -40,6 +40,7 @@ import {
   pausaScarto,
 } from './automa';
 import { precaricaMazzo } from './carte/immagini';
+import { CARTA_DISTRIBUITA_MS, carteDaDistribuire } from './distribuzione';
 import { fissaNomiDelTavolo } from './labels';
 import { pescaNomi } from './nomi';
 import { ordineDiMano } from './ordine';
@@ -48,8 +49,8 @@ import { cartaDelTrionfo } from './trionfo';
 
 /**
  * La distribuzione e' una fase vera, non un timeout dentro un componente:
- * quando arrivera' l'animazione delle carte che volano ai giocatori si
- * agganciera' qui senza toccare il resto della macchina a stati.
+ * dura il tempo delle carte, una alla volta, e il tavolo si guarda mentre
+ * arrivano. Finita, sullo stesso tavolo si chiama.
  */
 export type Phase =
   | 'distribuzione'
@@ -95,6 +96,13 @@ export interface Session {
    */
   scoperta: Card | null;
   hands: Card[][];
+  /**
+   * Quante carte sono gia' arrivate a tavola durante la distribuzione. Le
+   * mani sono complete fin dall'inizio — le fa l'engine in un colpo solo —
+   * ma a schermo si scoprono a una a una, e questo dice a che punto sta il
+   * giro. Da qui in poi vale sempre quanto la mano intera.
+   */
+  distribuite: number;
   monte: Card[];
   call: CallState;
   state: HandState | null;
@@ -128,7 +136,6 @@ const CARTE_FERME_MS = 1500;
 
 /** Poi le carte volano verso chi ha vinto: va d accordo con la transizione CSS. */
 const RACCOLTA_MS = 600;
-const DISTRIBUZIONE_MS = 1200;
 
 /**
  * Il seed non si chiede piu' al giocatore, ma resta il modo per riprodurre
@@ -211,6 +218,7 @@ function nuovaSessione(
     trump: dealt.trump,
     scoperta: cartaDelTrionfo(dealt, config, dealer),
     hands: dealt.hands,
+    distribuite: 0,
     monte: dealt.monte,
     call: createCallState(config, dealer),
     state: null,
@@ -324,18 +332,25 @@ export function useHand(): UseHand {
     return () => clearTimeout(timer);
   }, [pause]);
 
-  // La distribuzione finisce da sola e porta alla chiamata: e' l'unico punto
-  // da cambiare quando le carte inizieranno davvero a volare sul tavolo.
+  // Le carte arrivano una alla volta, e non si salta: la distribuzione fa
+  // parte del gioco come al tavolo. All'ultima si scopre il monte e comincia
+  // la chiamata, sullo stesso tavolo.
   useEffect(() => {
     if (session?.phase !== 'distribuzione') return undefined;
-    // Il secondo di attesa serve anche a questo: le foto sono gia' pronte
-    // quando la prima mano si scopre.
+    // Le foto devono essere pronte prima che la prima carta si scopra.
     precaricaMazzo();
     const timer = setTimeout(() => {
-      setSession((prev) => (prev !== null && prev.phase === 'distribuzione' ? { ...prev, phase: 'call' } : prev));
-    }, DISTRIBUZIONE_MS);
+      setSession((prev) => {
+        if (prev === null || prev.phase !== 'distribuzione') return prev;
+        const quante = carteDaDistribuire(prev.config.players, prev.config.handSize);
+        const distribuite = Math.min(prev.distribuite + 1, quante);
+        return distribuite < quante
+          ? { ...prev, distribuite }
+          : { ...prev, distribuite, phase: 'call' };
+      });
+    }, CARTA_DISTRIBUITA_MS);
     return () => clearTimeout(timer);
-  }, [session?.phase, session?.seed]);
+  }, [session?.phase, session?.seed, session?.distribuite]);
 
   const start = useCallback(
     (

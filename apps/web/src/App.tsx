@@ -1,5 +1,4 @@
 import type { ReactElement } from 'react';
-import { CallScreen } from './screens/CallScreen';
 import { DealingScreen } from './screens/DealingScreen';
 import { DiscardScreen } from './screens/DiscardScreen';
 import { EndScreen } from './screens/EndScreen';
@@ -35,12 +34,10 @@ export function App(): ReactElement {
 
       {session === null && <SetupScreen onStart={hand.start} />}
 
-      {session !== null && session.phase === 'distribuzione' && (
-        <DealingScreen session={session} />
-      )}
-
-      {session !== null && session.phase === 'call' && (
-        <CallScreen session={session} onDecide={hand.decidi} />
+      {/* Le carte che arrivano e la chiamata sono la stessa scena: il tavolo
+          si apre appena distribuito e non si chiude piu' fino al gioco. */}
+      {session !== null && (session.phase === 'distribuzione' || session.phase === 'call') && (
+        <DealingScreen session={session} onDecide={hand.decidi} />
       )}
 
       {session !== null && session.phase === 'discard' && (
