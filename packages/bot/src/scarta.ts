@@ -13,14 +13,16 @@ import { contaTrionfi } from './valutaMano.ts';
  * - il palo PIU' LUNGO non si accorcia. Quello e' una fonte di prese, non un
  *   peso: dopo due o tre giri gli altri ne sono privi e tutto quello che
  *   resta in mano prende da solo, fante e 6 compresi.
- * - dai pali di MEZZA LUNGHEZZA si tolgono le scartine, lasciando le carte
- *   di comando — maniglia e asso — il piu' possibile secche: cosi' quel palo
- *   si esaurisce in fretta, si diventa privi e si puo' uccidere. Restare
- *   lunghi dove si ha il comando espone il comando al taglio, perche' ogni
- *   giro in piu' e' un'occasione perche' un avversario resti privo e uccida.
+ * - da un palo di MEZZA LUNGHEZZA, da quattro carte in su, escono le
+ *   scartine e nient'altro: asso, cavallo e fante di seguito valgono piu'
+ *   dell'asso solo con tre scartine sotto, perche' dopo un giro diventano
+ *   tutti e tre prese. La catena non si spezza, in nessun palo, e la
+ *   lunghezza che conta e' quella di quando si e' preso il monte: un palo
+ *   accorciato scartando non diventa per questo un palo corto.
  * - un palo corto si svuota del tutto, che da li' in poi si taglia: e' la
  *   cosa vista fare in tutte le mani chiamate, e vale per ogni palo tranne
- *   quello lungo.
+ *   quello lungo. Li' le figure se ne vanno volentieri: in un palo di due o
+ *   tre carte non si difendono, e chi taglia se le porta via.
  *
  * Poi si riempie con le carte meno utili. I punti nel monte si accettano solo
  * con tanti trionfi in mano, perche' allora si conta di vincere l'ultima presa
@@ -28,7 +30,12 @@ import { contaTrionfi } from './valutaMano.ts';
  * piu'.
  *
  * Due regole non si violano mai: non si scartano trionfi, e non si scarta una
- * carta padrona di un seme che si tiene.
+ * carta padrona di un seme che si tiene. Un asso senza il suo 7 padrone non
+ * e': la maniglia lo batte sempre. Se poi dietro non ha nemmeno una figura del
+ * suo palo o un palo lungo da aprire, e' un asso spelato, e quello nel monte ci
+ * va comunque, anche sforando il conto dei punti: al tavolo sono quattro punti
+ * regalati a chi ha la maniglia, nel monte restano da parte per chi vince
+ * l'ultima presa.
  */
 
 /**
@@ -121,6 +128,36 @@ function inutilita(carta: Card): number {
 }
 
 /**
+ * Un asso senza il suo 7 non e' una base: la maniglia lo batte sempre, e per
+ * giunta chi la gioca si porta via quattro punti.
+ */
+function assoSenzaIlSette(carta: Card, mano: readonly Card[]): boolean {
+  if (carta.rank !== 'asso') return false;
+  return !mano.some((altra) => altra.suit === carta.suit && altra.rank === 7);
+}
+
+/**
+ * L'asso spelato, quello che nel monte ci va comunque, anche sforando il conto
+ * dei punti: senza il suo 7 e senza niente dietro non prende una presa che una,
+ * e quella gliela porta via la maniglia.
+ *
+ * Dietro puo' esserci due cose: un palo abbastanza lungo da esaurire gli altri,
+ * e allora l'asso apre la catena e resta; oppure un'altra figura dello stesso
+ * palo, e allora l'asso la protegge e i due valgono insieme. Con tre scartine
+ * sotto e nient'altro non c'e' catena da aprire: e' una carta sola ed esposta.
+ *
+ * Osservato: a cinque, con l'asso di coppe secondo al fante, e' uscito a mano
+ * aperta e la maniglia se l'e' preso con dentro quattro punti.
+ */
+function assoSpelato(carta: Card, mano: readonly Card[], corto: boolean): boolean {
+  if (!assoSenzaIlSette(carta, mano)) return false;
+  if (corto) return true;
+  return !mano.some(
+    (altra) => altra.suit === carta.suit && altra.id !== carta.id && cardPoints(altra.rank) > 0,
+  );
+}
+
+/**
  * Il palo lungo, quello da non accorciare: il piu' lungo dei laterali, purche'
  * sia abbastanza lungo da rendere qualcosa dopo i giri che servono a ripulire
  * gli altri. Con tre carte su dieci non resta niente in mano e non c'e' nessuna
@@ -196,8 +233,13 @@ export function scegliScarti(
   const scarti: Card[] = [];
   const scelta = (carta: Card): boolean => scarti.some((c) => c.id === carta.id);
   const restanti = (): Card[] => fuoriTrionfo.filter((carta) => !scelta(carta));
-  const quanteRestano = (seme: Suit): number =>
-    manoAllargata.filter((carta) => carta.suit === seme && !scelta(carta)).length;
+  // Quante ne aveva in quel palo quando ha preso il monte, non quante gliene
+  // restano dopo gli scarti gia' scelti: un palo lungo che si accorcia non
+  // diventa per questo un palo corto. Contando quelle che restano bastava
+  // togliergli due scartine perche' cominciasse a perdere le figure.
+  const quanteInMano = (seme: Suit): number =>
+    manoAllargata.filter((carta) => carta.suit === seme).length;
+  const semeCorto = (seme: Suit): boolean => quanteInMano(seme) <= SEME_CORTO;
 
   // 1. Svuotare un seme, il piu' corto per primo: da li' in poi si taglia.
   for (const seme of semiDaSvuotare(fuoriTrionfo, trump, fonte)) {
@@ -227,15 +269,29 @@ export function scegliScarti(
       fonte === null
         ? []
         : disponibili.filter(
-            (carta) => carta.suit !== fonte && cardPoints(carta.rank) <= budget,
+            (carta) =>
+              carta.suit !== fonte &&
+              (cardPoints(carta.rank) <= budget ||
+                assoSpelato(carta, manoAllargata, semeCorto(carta.suit))),
           );
     const candidati = dagliAltriPali.length > 0 ? dagliAltriPali : disponibili;
 
+    // Le figure escono dai pali corti, quelli che si svuotano: li' non si
+    // difendono e chi taglia se le porta via. Da un palo di quattro carte in su
+    // escono le scartine e basta, che le alte di seguito sono la catena che lo
+    // fa fruttare — dopo un giro il palo si esaurisce negli altri e cavallo e
+    // fante prendono da soli. Il caso vero: quattro spade con asso, cavallo e
+    // fante, e nel monte ci sono finiti cavallo e fante, lasciando l'asso solo.
+    //
+    // L'asso spelato invece nel monte ci va comunque, che il budget lo regga o
+    // no: tenerlo vuol dire regalare quattro punti alla maniglia, e i punti nel
+    // monte almeno restano da parte per chi vince l'ultima presa.
     const daScaricare = candidati.filter(
       (carta) =>
+        carta.suit !== fonte &&
         cardPoints(carta.rank) > 0 &&
-        cardPoints(carta.rank) <= budget &&
-        quanteRestano(carta.suit) <= SEME_CORTO,
+        ((semeCorto(carta.suit) && cardPoints(carta.rank) <= budget) ||
+          assoSpelato(carta, manoAllargata, semeCorto(carta.suit))),
     );
 
     const scelto =

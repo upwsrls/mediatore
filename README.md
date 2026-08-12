@@ -16,8 +16,21 @@ nelle varianti a monte (3, 4, 5 giocatori) e amico (5 giocatori).
   `packages/bot/src/chiamateVere.ts` tiene le 65 decisioni vere da cui e'
   uscito quel criterio, e il test dice quanto ci resta vicino. Nello scarto il
   palo piu' lungo non lo accorcia — quello e' una fonte di prese, e dopo due o
-  tre giri tutto quello che ne resta in mano prende da solo — e le scartine le
-  prende dai pali di mezzo, lasciando maniglia e asso secchi. Coi trionfi si
+  tre giri tutto quello che ne resta in mano prende da solo. Da nessun palo di
+  quattro carte in su toglie le figure: escono le scartine, che la catena di
+  alte non si spezza, e la lunghezza si conta com'era quando ha preso il monte,
+  se no bastava togliergli due carte per metterlo a perdere l'asso. Le figure le
+  prende dai pali corti, che li' non si difendono, e un asso senza il suo 7 e
+  senza niente dietro lo manda nel monte anche a costo di lasciarci punti:
+  quella non e' una base, la maniglia se la porta via. Per lo stesso motivo non
+  apre mai con un asso laterale finche' il 7 di quel palo gira — se fuori dal
+  trionfo gli e' rimasto solo quello, esce da una scartina di trionfo, che non
+  paga niente e tira fuori la maniglia — e su una presa che si porta via un
+  avversario ci butta la carta che paga meno punti. La presa che sta vincendo
+  un compagno non gliela toglie: ci carica i punti o ci scarta, che il trionfo
+  speso per uccidere il proprio compagno non guadagna niente. Ci uccide sopra
+  in un caso solo, quando la sua non comanda il palo e dietro c'e' chi la
+  batterebbe a seme. Coi trionfi si
   arrassa finche' gli avversari ne hanno e finche' ne ha abbastanza da
   finirli davvero: con tre trionfi contro sei non si arrassa, che sarebbe
   bruciare il proprio comando su prese vuote. Ed esce da una carta che batte il

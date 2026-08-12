@@ -89,6 +89,23 @@ function scartaLaPiuInutile(vista: VistaDelBot, carte: readonly Card[], rng: Rng
 }
 
 /**
+ * La presa se la porta via un avversario e non c'e' modo di impedirlo: quello
+ * che ci si mette gli e' regalato, quindi ci va la scartina e mai una carta a
+ * punti. Contro una maniglia non c'e' niente da fare, e infilarci il cavallo
+ * sono due punti dati via per niente.
+ *
+ * I punti vengono prima di tutto il resto. Il conto di quanto serve una carta
+ * per dopo conta un trionfo quanto un asso, ed e' giusto quando si sceglie
+ * fra carte che pagano lo stesso — ma su una presa persa faceva preferire il
+ * fante degli altri alla propria scartina di trionfo, cioe' pagava un punto
+ * per tenersi un due.
+ */
+function buttaSullaPresaPersa(vista: VistaDelBot, carte: readonly Card[], rng: Rng): Card {
+  const magre = migliori(carte, (carta) => -cardPoints(carta.rank));
+  return scartaLaPiuInutile(vista, magre, rng);
+}
+
+/**
  * Sulla presa si carica: piu' punti possibile, spendendo il meno possibile. I
  * trionfi restano fuori finche' c'e' altro, perche' un trionfo alto buttato
  * su una presa gia' fatta e' una presa in meno per dopo.
@@ -333,6 +350,29 @@ function perRendereFirmaLAltra(vista: VistaDelBot, legali: readonly Card[]): Car
   return null;
 }
 
+/**
+ * Le carte con cui aprire sarebbe regalare punti. Un asso senza il suo 7 non
+ * e' una base: la maniglia lo batte sempre, e chi apre con quello mette
+ * quattro punti sul tavolo per il primo che li vuole. Vale per ogni carta a
+ * punti che non comanda il suo palo — il re sotto l'asso, il cavallo sotto il
+ * re — perche' aprire e' scoprirsi per primi, e chi viene dopo sceglie.
+ *
+ * Il trionfo non e' di questa lista: da tirarlo o no lo decidono l'arrassata e
+ * i suoi freni, che stanno piu' sopra.
+ */
+function regaloDiPunti(vista: VistaDelBot, carta: Card): boolean {
+  if (carta.suit === vista.trump) return false;
+  if (cardPoints(carta.rank) === 0) return false;
+  return !ePadrona(vista, carta);
+}
+
+/**
+ * Da qui in su il regalo e' grosso: il re e l'asso. Per non metterli sul tavolo
+ * vale la pena di bruciare una scartina di trionfo; per un fante o un cavallo
+ * no, che il trionfo in mano vale piu' di quel punto.
+ */
+const REGALO_GROSSO = 3;
+
 /** Il seme da cui si rischia meno ad aprire: quello dove ho meno punti. */
 function semeMenoCaro(vista: VistaDelBot, legali: readonly Card[]): Suit | null {
   const semi = [...new Set(legali.map((carta) => carta.suit))];
@@ -439,9 +479,33 @@ function apre(vista: VistaDelBot, legali: readonly Card[], rng: Rng): Card {
   const sacrificio = perRendereFirmaLAltra(vista, legali);
   if (sacrificio !== null) return sacrificio;
 
-  const palo = semeMenoCaro(vista, legali);
-  const dalPaloMagro = legali.filter((carta) => carta.suit === palo);
-  return scartaLaPiuInutile(vista, dalPaloMagro.length > 0 ? dalPaloMagro : legali, rng);
+  // Non restando niente da incassare si apre per uscire di mano, e allora si
+  // esce con una scartina, dal seme dove si rischia meno.
+  const fuoriTrionfo = legali.filter((carta) => carta.suit !== vista.trump);
+  const pulite = fuoriTrionfo.filter((carta) => !regaloDiPunti(vista, carta));
+  if (pulite.length > 0) {
+    const palo = semeMenoCaro(vista, pulite);
+    const dalPaloMagro = pulite.filter((carta) => carta.suit === palo);
+    return scartaLaPiuInutile(vista, dalPaloMagro.length > 0 ? dalPaloMagro : pulite, rng);
+  }
+
+  // Fuori dal trionfo paga tutto: allora si guarda quanto costa pagare, e nel
+  // conto entra anche il trionfo. Una scartina di trionfo non vale un punto, e
+  // in cambio tira fuori la maniglia: quello che si tiene sotto di lei si
+  // libera. L'asso laterale invece sono quattro punti che se ne vanno insieme
+  // alla presa. Era da qui che usciva l'asso secco anche quando in mano c'era
+  // un 2 di trionfo che non serviva a niente.
+  const scartineDiTrionfo = legali.filter(
+    (carta) => carta.suit === vista.trump && cardPoints(carta.rank) === 0,
+  );
+  const regaloPiuMagro = Math.min(...fuoriTrionfo.map((carta) => cardPoints(carta.rank)));
+  const paganoTutti = fuoriTrionfo.length === 0 || regaloPiuMagro >= REGALO_GROSSO;
+  if (scartineDiTrionfo.length > 0 && paganoTutti) {
+    return scartaLaPiuInutile(vista, scartineDiTrionfo, rng);
+  }
+
+  if (fuoriTrionfo.length > 0) return scartaLaPiuInutile(vista, fuoriTrionfo, rng);
+  return scartaLaPiuInutile(vista, legali, rng);
 }
 
 /** Sotto queste, di un palo, in giro c'e' gia' chi ne e' privo e taglia. */
@@ -496,26 +560,52 @@ function convieneCaricare(vista: VistaDelBot, carta: Card): boolean {
   return false;
 }
 
+/**
+ * La presa la sta vincendo un compagno.
+ *
+ * Prima di tutto non gliela si porta via. Quella presa e' gia' della propria
+ * parte: prendergliela col trionfo non ne guadagna una, brucia una carta che
+ * serviva dopo e per giunta lascia la presa magra, che i punti non ce li ha
+ * caricati nessuno. Il caso vero: a quattro, un difensore apre con la maniglia
+ * di coppe, il chiamante ci va liscio, e l'ultimo difensore — privo di coppe e
+ * con la presa gia' sicura — ci ha ucciso sopra col 5 di trionfo. Ci arrivava
+ * dal conto di quanto costa perdere una carta, che ai trionfi da' un peso
+ * fisso: fra un asso e un due di trionfo il due sembrava il piu' caro da dare,
+ * e cosi' il trionfo usciva proprio dove non serviva a niente.
+ *
+ * Quindi si sceglie fra le carte che gliela lasciano, e le altre si guardano
+ * solo se non c'e' nient'altro di legale da giocare.
+ */
 function presaDelCompagno(vista: VistaDelBot, legali: readonly Card[], rng: Rng): Card {
   const sua = cartaVincente(vista);
   const gliaLasciano = sua === null || rischioDiPerdere(vista, sua) <= RISCHIO_TRASCURABILE;
+  const senzaRubargliela = legali.filter((carta) => !possoVincere(vista, carta));
+  const scelte = senzaRubargliela.length > 0 ? senzaRubargliela : legali;
+
   if (!gliaLasciano) {
     // La presa e' del compagno solo per il momento: dietro c'e' ancora chi
-    // passa sopra, e spesso e' il chiamante che deve ancora giocare con la
-    // maniglia in mano. Essendo privi del palo, una scartina di trionfo qui
-    // vale piu' che in mano: prende la presa e zomba la carta con cui l'altro
-    // se la stava per fare.
-    if (staUccidendo(vista, legali)) {
+    // passa sopra. Uccidergli sopra ha un senso in un caso solo, ed e' quando
+    // la sua non comanda il palo: li' il pericolo e' una carta piu' alta di
+    // quel palo — il chiamante in agguato con la maniglia, che deve ancora
+    // giocare — e una scartina di trionfo se la mangia, cioe' vale piu' qui
+    // che in mano.
+    //
+    // Se invece la sua e' gia' la piu' alta che gira, l'unico modo di perderla
+    // e' un taglio, e un taglio non si ferma tagliandoci sopra: chi uccide
+    // dopo di me passa sopra al mio trionfo come sarebbe passato sopra al suo,
+    // e il trionfo l'ho speso per niente.
+    const laPuoPerdereInPalo = sua !== null && !ePadrona(vista, sua);
+    if (laPuoPerdereInPalo && staUccidendo(vista, legali)) {
       const coltelli = coltelliPerUccidere(vista, legali);
       if (coltelli.length > 0) return uccidiDalBasso(vista, coltelli);
     }
-    return scartaLaPiuInutile(vista, legali, rng);
+    return scartaLaPiuInutile(vista, scelte, rng);
   }
 
-  const daCaricare = legali.filter(
+  const daCaricare = scelte.filter(
     (carta) => cardPoints(carta.rank) > 0 && convieneCaricare(vista, carta),
   );
-  if (daCaricare.length === 0) return scartaLaPiuInutile(vista, legali, rng);
+  if (daCaricare.length === 0) return scartaLaPiuInutile(vista, scelte, rng);
   return caricaPunti(vista, daCaricare, rng);
 }
 
@@ -633,7 +723,7 @@ function presaDaStrappare(
   parametri: Parametri,
 ): Card {
   const vincenti = legali.filter((carta) => possoVincere(vista, carta));
-  if (vincenti.length === 0) return scartaLaPiuInutile(vista, legali, rng);
+  if (vincenti.length === 0) return buttaSullaPresaPersa(vista, legali, rng);
 
   if (staUccidendo(vista, legali)) {
     const coltelli = coltelliPerUccidere(vista, legali);
@@ -643,7 +733,7 @@ function presaDaStrappare(
     // si scarta liscio. Se non c'e' altro da giocare si taglia lo stesso, che
     // una carta va messa comunque.
     const fuoriTrionfo = legali.filter((carta) => carta.suit !== vista.trump);
-    if (fuoriTrionfo.length > 0) return scartaLaPiuInutile(vista, fuoriTrionfo, rng);
+    if (fuoriTrionfo.length > 0) return buttaSullaPresaPersa(vista, fuoriTrionfo, rng);
     const trionfi = vincenti.filter((carta) => carta.suit === vista.trump);
     if (trionfi.length > 0) return uccidiDalBasso(vista, trionfi);
   }
@@ -660,7 +750,7 @@ function presaDaStrappare(
   if (!siPuoLasciarAndare(vista, economica)) return economica;
 
   const rinunce = legali.filter((carta) => !possoVincere(vista, carta));
-  return rinunce.length > 0 ? scartaLaPiuInutile(vista, rinunce, rng) : economica;
+  return rinunce.length > 0 ? buttaSullaPresaPersa(vista, rinunce, rng) : economica;
 }
 
 function decidi(
