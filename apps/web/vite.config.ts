@@ -9,7 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
       manifest: {
-        name: 'Mediatore',
+        name: 'Mediatore Barlettano',
+        // Sotto l'icona della schermata Home ci stanno poche lettere: il nome
+        // intero verrebbe troncato a meta', quindi li' resta quello corto.
         short_name: 'Mediatore',
         description: 'Gioco di carte a prese con trionfo, in modalita hotseat',
         display: 'standalone',

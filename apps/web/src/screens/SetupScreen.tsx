@@ -29,7 +29,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
 
   return (
     <section className="schermata">
-      <h1>Mediatore</h1>
+      <h1>Mediatore Barlettano</h1>
       <p className="sottotitolo">
         {controBot
           ? 'siedi al tavolo: gli altri posti li occupano loro'
@@ -114,7 +114,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
         className="bottone-grande"
         onClick={() => onStart(players, variant, puntoDiVista, controBot, carteScoperte)}
       >
-        Distribuisci
+        Vai al tavolo
       </button>
     </section>
   );
