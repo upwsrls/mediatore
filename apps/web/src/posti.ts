@@ -1,8 +1,9 @@
 /**
  * Dove sedere i giocatori attorno al tavolo. Chi guarda sta sempre in basso,
- * gli altri gli girano attorno partendo dalla sua sinistra e proseguendo in
- * senso antiorario, che e' anche l'ordine di gioco: chi vede la carta entrare
- * da sinistra sa che a giocarla e' stato il prossimo di turno.
+ * gli altri gli girano attorno partendo dalla sua DESTRA e salendo, che e'
+ * l'ordine di gioco: al Mediatore si gira in senso antiorario, e dopo di te
+ * tocca a quello che hai alla destra. Cosi' l'evidenza del turno gira come al
+ * tavolo vero, e la carta di chi sta a destra entra in tavola da destra.
  */
 export type Posizione =
   | 'basso'
@@ -14,12 +15,13 @@ export type Posizione =
 
 /**
  * I posti da assegnare agli altri, nell'ordine di gioco a partire da chi
- * segue quello in basso. Il numero uno e' il piu' vicino a chi guarda.
+ * segue quello in basso. Il numero uno e' il piu' vicino a chi guarda, quindi
+ * il giro sale lungo il lato destro, passa in alto e scende lungo il sinistro.
  */
 const GIRO: Record<number, Posizione[]> = {
-  3: ['sinistra-1', 'destra-1'],
-  4: ['sinistra-1', 'alto', 'destra-1'],
-  5: ['sinistra-1', 'sinistra-2', 'destra-2', 'destra-1'],
+  3: ['destra-1', 'sinistra-1'],
+  4: ['destra-1', 'alto', 'sinistra-1'],
+  5: ['destra-1', 'destra-2', 'sinistra-2', 'sinistra-1'],
 };
 
 /**

@@ -12,21 +12,22 @@ function giroDa(players: number, inBasso: number): Posizione[] {
 }
 
 describe('disposizione', () => {
-  it('mette a sinistra e a destra gli altri due, in tre', () => {
-    expect(giroDa(3, 0)).toEqual(['basso', 'sinistra-1', 'destra-1']);
+  // Si gira in senso antiorario: il primo dopo chi guarda gli siede a destra.
+  it('mette a destra il primo e a sinistra il secondo, in tre', () => {
+    expect(giroDa(3, 0)).toEqual(['basso', 'destra-1', 'sinistra-1']);
   });
 
   it('riempie anche il posto in alto, in quattro', () => {
-    expect(giroDa(4, 0)).toEqual(['basso', 'sinistra-1', 'alto', 'destra-1']);
+    expect(giroDa(4, 0)).toEqual(['basso', 'destra-1', 'alto', 'sinistra-1']);
   });
 
   it('mette due per lato e nessuno in alto, in cinque', () => {
     expect(giroDa(5, 0)).toEqual([
       'basso',
-      'sinistra-1',
-      'sinistra-2',
-      'destra-2',
       'destra-1',
+      'destra-2',
+      'sinistra-2',
+      'sinistra-1',
     ]);
   });
 
@@ -50,14 +51,45 @@ describe('disposizione', () => {
     }
   });
 
-  it('sale lungo il lato sinistro e scende lungo il destro', () => {
-    // Chi e' piu' avanti nel giro sta piu' in alto: sinistra-2 e destra-2
-    // sono i posti lontani, sinistra-1 e destra-1 quelli vicini a chi guarda.
+  it('sale lungo il lato destro e scende lungo il sinistro', () => {
+    // Chi e' piu' avanti nel giro sta piu' in alto: destra-2 e sinistra-2
+    // sono i posti lontani, destra-1 e sinistra-1 quelli vicini a chi guarda.
     const posizioni = disposizione(5, 3);
-    expect(posizioni[4]).toBe('sinistra-1');
-    expect(posizioni[0]).toBe('sinistra-2');
-    expect(posizioni[1]).toBe('destra-2');
-    expect(posizioni[2]).toBe('destra-1');
+    expect(posizioni[4]).toBe('destra-1');
+    expect(posizioni[0]).toBe('destra-2');
+    expect(posizioni[1]).toBe('sinistra-2');
+    expect(posizioni[2]).toBe('sinistra-1');
+  });
+
+  /**
+   * La prova del senso di gioco: presa la disposizione, si segue il turno
+   * come lo fa avanzare l'engine e si guarda dove finisce l'evidenza. Deve
+   * scendere lungo il lato destro dal basso, passare in alto e tornare giu'
+   * a sinistra, cioe' muoversi sempre verso sinistra a schermo.
+   */
+  it("l'evidenza del turno gira in senso antiorario, come al tavolo", () => {
+    const versoSinistra: Record<Posizione, number> = {
+      'destra-1': 0,
+      'destra-2': 1,
+      alto: 2,
+      'sinistra-2': 3,
+      'sinistra-1': 4,
+      basso: 5,
+    };
+
+    for (const players of [3, 4, 5]) {
+      for (let inBasso = 0; inBasso < players; inBasso += 1) {
+        const posizioni = disposizione(players, inBasso);
+        const percorso = Array.from(
+          { length: players },
+          (_, passo) => versoSinistra[posizioni[(inBasso + passo) % players] as Posizione],
+        );
+        // Il primo e' chi guarda, in basso; da li' in poi si va verso sinistra.
+        expect(percorso[0]).toBe(versoSinistra.basso);
+        const giro = percorso.slice(1);
+        expect(giro).toEqual([...giro].sort((a, b) => (a ?? 0) - (b ?? 0)));
+      }
+    }
   });
 
   it('rifiuta i tavoli che non sa apparecchiare', () => {
