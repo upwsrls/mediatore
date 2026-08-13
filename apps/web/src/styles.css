@@ -407,6 +407,12 @@ button.carta:active {
   color: var(--oro);
 }
 
+/* Il posto e' preso lo stesso, ma non c'e' niente da leggere: la riga tiene
+   l'altezza di una riga e sparisce alla vista come alla voce. */
+.obbligo-in-attesa {
+  visibility: hidden;
+}
+
 /* ---- distribuzione ---- */
 
 .posti {

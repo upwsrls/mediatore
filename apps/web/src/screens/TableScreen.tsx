@@ -206,13 +206,12 @@ export function TableScreen({
           {sedia('alto')}
         </div>
 
+        {/* Il centro resta vuoto finche' non parte la prima carta: chi apre lo
+            dice gia' il bordo acceso attorno al suo posto, e qui in mezzo lo
+            spazio serve alle giocate. Vuoto non si affloscia: il pavimento del
+            centro e' alto `--centro` comunque, cosi' le carte non fanno saltare
+            il tavolo quando arrivano. */}
         <div className="tavolo-centro">
-          {inTavola.length === 0 && (
-            <p className="nota nota-centro">
-              apre <PlayerName seat={state.turn} state={state} />
-            </p>
-          )}
-
           {/* Le carte giocate si raccolgono verso il vincitore prima di sparire. */}
           <div
             className={
@@ -321,7 +320,14 @@ export function TableScreen({
             );
           })}
         </div>
-        {obbligo !== null && <p className="obbligo">{obbligo}</p>}
+        {/* La riga dell'obbligo c'e' sempre, anche quando non ha niente da
+            dire: se comparisse solo al bisogno quei quindici pixel li cederebbe
+            il centro del tavolo, e il tavolo si accorcerebbe proprio mentre si
+            guardano le carte per scegliere. Vuota resta invisibile, e allora
+            non la legge nemmeno lo schermo che parla. */}
+        <p className={obbligo === null ? 'obbligo obbligo-in-attesa' : 'obbligo'}>
+          {obbligo ?? '\u00a0'}
+        </p>
       </div>
 
       {monteAperto && caller !== null && (
