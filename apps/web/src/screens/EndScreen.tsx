@@ -1,7 +1,8 @@
-import type { HandScore, HandState } from '@mediatore/engine';
-import { scoreHand, settle, settleChiSeLaSenteScaduto } from '@mediatore/engine';
+import type { Card as CartaEngine, HandScore, HandState, Suit } from '@mediatore/engine';
+import { scoreHand, settle, settleChiSeLaSenteScaduto, totalPoints } from '@mediatore/engine';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
+import { Card } from '../components/Card';
 import { PartiteRegistrate } from '../components/PartiteRegistrate';
 import { PlayerName } from '../components/PlayerName';
 import { PuntoDiVista } from '../components/PuntoDiVista';
@@ -14,6 +15,7 @@ import {
   spiegazioniSupplementi,
 } from '../chiamate';
 import { nomeGiocatore } from '../labels';
+import { ordinaCarte } from '../ordine';
 import { schieramenti } from '../roles';
 import type { Session } from '../useHand';
 import { ReviewScreen } from './ReviewScreen';
@@ -103,6 +105,13 @@ export function EndScreen({
         </ul>
       </div>
 
+      <MonteScoperto
+        monte={state.monte}
+        trump={state.trump}
+        state={state}
+        preso={ultimaBase(state)}
+      />
+
       <div className="blocco">
         {score.callerSide === null ? (
           <>
@@ -182,6 +191,71 @@ export function EndScreen({
       </p>
       <PartiteRegistrate />
     </section>
+  );
+}
+
+/** Chi ha vinto l'ultima base, e quindi si e' preso il monte. */
+function ultimaBase(state: HandState): number | null {
+  return state.completedTricks[state.completedTricks.length - 1]?.winner ?? null;
+}
+
+/**
+ * Il monte a carte in tavola. Durante la smazzata sta coperto — nella sola lo
+ * guarda solo il chiamante, nella colonna nessuno — ma a conto fatto non c'e'
+ * piu' niente da tenere nascosto, e quelle carte spiegano una parte dei punti
+ * che sta qui sopra: chi vince l'ultima base se le porta via tutte.
+ *
+ * Le carte stanno nell'ordine in cui si tiene una mano. Nella variante amico
+ * il monte non esiste, e allora questo blocco non c'e' nemmeno.
+ */
+function MonteScoperto({
+  monte,
+  trump,
+  state,
+  preso,
+}: {
+  monte: readonly CartaEngine[];
+  trump: Suit;
+  /** Serve solo al ruolo scritto accanto al nome: null a smazzata non giocata. */
+  state: HandState | null;
+  /** Chi se l'e' preso, o null se la smazzata non si e' giocata. */
+  preso: number | null;
+}): ReactElement | null {
+  if (monte.length === 0) return null;
+
+  const puntiDelleCarte = totalPoints([...monte]);
+
+  return (
+    <div className="blocco">
+      <p className="etichetta">monte</p>
+      {/* Come nella modale del monte al tavolo: si guarda come una mano,
+          nello stesso ordine, cosi' si capisce al volo cosa c'era sotto. */}
+      <div className="mano mano-larga">
+        {ordinaCarte(monte, trump).map((carta) => (
+          <Card key={carta.id} card={carta} size="piccola" />
+        ))}
+      </div>
+      <p>
+        {preso === null ? (
+          'non lo ha preso nessuno: la smazzata non si e giocata'
+        ) : (
+          <>
+            lo ha preso <PlayerName seat={preso} state={state} />, che ha vinto l ultima base
+          </>
+        )}
+      </p>
+      {/* Quanto valeva si dice solo se qualcuno l'ha incassato: dove la
+          smazzata non si e' giocata quei punti non sono andati a nessuno, e
+          scriverli sembrerebbe un conto che invece non c'e' stato. */}
+      {preso !== null && (
+        <p className="nota">
+          valeva {puntiDelleCarte + 1}:{' '}
+          {puntiDelleCarte === 0
+            ? 'carte senza punti, piu 1 della base'
+            : `${puntiDelleCarte} di carte piu 1 della base`}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -334,6 +408,15 @@ function FineScaduta({
           si contano
         </p>
       </div>
+
+      {/* Il monte non l'ha vinto nessuno, ma la smazzata e' chiusa: e allora si
+          vede, che quello che c'era sotto non e' piu' segreto di niente. */}
+      <MonteScoperto
+        monte={session.monte}
+        trump={session.trump}
+        state={null}
+        preso={null}
+      />
 
       <div className="blocco">
         <p className="etichetta">quote</p>

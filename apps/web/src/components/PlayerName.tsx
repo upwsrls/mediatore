@@ -10,7 +10,11 @@ interface Props {
   state: HandState | null;
   /** Forma breve per gli spazi stretti: g0 invece di giocatore 0. */
   compatto?: boolean;
-  /** Chi distribuisce, solo durante la distribuzione: ruolo di un momento. */
+  /**
+   * Ha dato le carte: pallino rosso accanto al nome, dalla prima carta che
+   * esce all'ultimo punto contato. Non e' un ruolo come il chiamante, e'
+   * un'informazione di servizio, e si riconosce sempre nello stesso modo.
+   */
   cartaro?: boolean;
   /**
    * Ha chiamato, ma la smazzata non e' ancora cominciata e non c'e' nessuno
@@ -52,7 +56,17 @@ export function PlayerName({
           {etichetta}
         </span>
       )}
-      {cartaro && <span className="giocatore-cartaro">cartaro</span>}
+      {/*
+       * Il pallino e nient'altro, dalla distribuzione alla fine: la parola
+       * CARTARO scritta per lungo sui posti di lato sforava il tavolo di una
+       * trentina di pixel, e adesso non serve piu' a niente. Chi ascolta lo
+       * schermo la sente comunque: il colore da solo non gli dice niente.
+       */}
+      {cartaro && (
+        <span className="pallino-cartaro">
+          <span className="solo-letta">cartaro</span>
+        </span>
+      )}
     </span>
   );
 }

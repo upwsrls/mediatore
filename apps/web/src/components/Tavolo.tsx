@@ -26,7 +26,7 @@ interface PostoProps {
   diTurno: boolean;
   /** I punti fatti finora. Null prima che la smazzata cominci. */
   punti: number | null;
-  /** Chi distribuisce, e solo mentre distribuisce: ruolo di un momento. */
+  /** Ha dato le carte: il pallino accanto al nome resta tutta la smazzata. */
   cartaro?: boolean;
   /** Ha chiamato, ma la smazzata non e' ancora cominciata: vedi PlayerName. */
   chiamante?: boolean;

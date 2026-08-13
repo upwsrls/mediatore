@@ -73,6 +73,21 @@ describe('catalogo dei suoni', () => {
     expect(pienezza('nessunoSeLaSente')).toBeLessThan(pienezza('meLaSento'));
   });
 
+  it('nessun suono nasce dove un altoparlantino non lo restituisce', () => {
+    // Un altoparlante di telefono sotto i quattrocento hertz non rende quasi
+    // niente. Una sinusoide bassa non ha nient'altro da farsi sentire e
+    // sparisce: e' quello che era capitato al passo, che partiva sempre e non
+    // si sentiva mai. Le altre onde portano le loro armoniche piu' su, e sono
+    // quelle a passare — quindi la nota bassa si puo' tenere, ma non liscia.
+    const PIU_GRAVE_UDIBILE = 350;
+    const portante = (voce: Voce): number =>
+      voce.forma === 'fruscio' || (voce.onda ?? 'sine') === 'sine' ? voce.hz : voce.hz * 3;
+    for (const nome of NOMI) {
+      const piuAlta = Math.max(...voci(nome).map(portante));
+      expect(piuAlta, nome).toBeGreaterThanOrEqual(PIU_GRAVE_UDIBILE);
+    }
+  });
+
   it('la chiusura scende, mentre la base vinta e il cappotto salgono', () => {
     // E' quello che la distingue dalle altre due: si chiude, non si festeggia.
     const scende = voci('smazzataChiusa');

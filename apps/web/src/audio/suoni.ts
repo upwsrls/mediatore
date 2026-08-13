@@ -177,7 +177,13 @@ export const SUONI: Record<Suono, Ricetta> = {
   // Il passo e' l'altra meta' della decisione, e si sente per lo stesso motivo:
   // e' cosi' che si capisce che il giro va avanti. Ma non dichiara niente, e
   // quindi sta sotto tutte le chiamate — bassa, corta, spenta.
-  passo: sintetizzato({ forma: 'tono', onda: 'sine', hz: 300, durata: 0.07, volume: 0.11 }),
+  //
+  // Bassa fin dove si sente, pero': a 300Hz di sinusoide pura non si sentiva
+  // affatto. Un altoparlantino di telefono sotto i quattrocento non restituisce
+  // niente, e la sinusoide non ha armoniche che gli passino sopra: il suono
+  // partiva ogni volta e nessuno lo sentiva mai. Sta in un triangolo, che porta
+  // le sue armoniche piu' in alto, e comunque piu' in basso di ogni chiamata.
+  passo: sintetizzato({ forma: 'tono', onda: 'triangle', hz: 392, durata: 0.06, volume: 0.13 }),
 
   // Chi se la sente: uno si fa avanti, ed e' una dichiarazione anche quella;
   // oppure non si fa avanti nessuno, e allora il giro si spegne — un passo
@@ -186,12 +192,15 @@ export const SUONI: Record<Suono, Ricetta> = {
     { forma: 'tono', onda: 'triangle', hz: 494, durata: 0.12, volume: 0.2 },
     { forma: 'tono', onda: 'triangle', hz: 740, durata: 0.14, volume: 0.2, ritardo: 0.08 },
   ),
+  // Piu' in basso e piu' lungo del passo, che li' il giro si spegne — ma anche
+  // questo triangolo e non sinusoide, per la stessa ragione del passo: era
+  // l'altro suono del catalogo che non arrivava a nessun orecchio.
   nessunoSeLaSente: sintetizzato({
     forma: 'tono',
-    onda: 'sine',
-    hz: 260,
-    durata: 0.18,
-    volume: 0.13,
+    onda: 'triangle',
+    hz: 294,
+    durata: 0.22,
+    volume: 0.15,
   }),
 
   // L'amico si scopre: una nota che sale, la sorpresa di chi era nascosto.

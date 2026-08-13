@@ -175,18 +175,25 @@ legend {
 }
 
 /*
- * Il cartaro non e' una squadra: e' un compito che dura una distribuzione.
- * Niente oro, niente fondo pieno, solo un contorno tratteggiato neutro.
+ * Il pallino del cartaro. Sta accanto al nome per tutta la smazzata e dice
+ * solo una cosa: da qui e' partito il giro delle carte. Non e' un ruolo, e
+ * quindi non prende ne' l'oro del chiamante ne' il bordo bianco del turno: e'
+ * un punto rosso di sei pixel, e uno stesso giocatore puo' averlo insieme a
+ * tutti e due senza che nessuna delle tre cose si confonda con le altre.
+ * Non si stringe mai sotto la sua misura, cosi' resta rotondo anche dove il
+ * nome sta per lungo. La parola per chi ascolta ce l'ha dentro.
  */
-.giocatore-cartaro {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: #cfd6d1;
-  border: 1px dashed #7d8b83;
-  border-radius: 4px;
-  padding: 1px 5px;
+.pallino-cartaro {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  /* Rosso schiarito, non quello dei semi: sul panno il --rosso sta a 1,7:1 e
+     un punto cosi' piccolo si perderebbe. Il filo scuro attorno serve quando
+     il pallino finisce sull'oro del chiamante, dove il rosso da solo sfuma. */
+  background: #e8574a;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
 }
 
 /* ---- carte ---- */
@@ -1495,11 +1502,6 @@ button.carta:active {
 
 .banner-liscio {
   background: #2b3b52;
-}
-
-.banner-amico {
-  background: var(--oro);
-  color: #1a1a1a;
 }
 
 .banner-base {

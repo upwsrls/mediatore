@@ -130,6 +130,9 @@ export function TableScreen({
         state={state}
         carte={state.hands[seat]?.length ?? 0}
         diTurno={seat === state.turn}
+        // Chi ha dato le carte resta segnato da un pallino: si gioca sapendo
+        // da dove e' partito il giro, e col mazziere che ruota cambia posto.
+        cartaro={seat === state.dealer}
         punti={aiuti ? (punti[seat] ?? 0) : null}
         spiate={spiate(seat)}
         players={session.config.players}
@@ -196,9 +199,6 @@ export function TableScreen({
 
       {caller === null && (
         <div className="banner banner-liscio">LISCIO — perde chi fa piu punti</div>
-      )}
-      {friend !== null && (
-        <div className="banner banner-amico">AMICO SCOPERTO: {nomeGiocatore(friend)}</div>
       )}
 
       <div className={spia ? 'tavolo-scena tavolo-spiato' : 'tavolo-scena'}>
@@ -376,7 +376,8 @@ function ContoDeiTrionfi({ state, seat }: { state: HandState; seat: number }): R
  * La carta chiamata, scoperta in cima al tavolo dall'annuncio fino alla fine.
  * Sta accanto al monte perche' e' della stessa natura: roba del tavolo, non
  * di un giocatore. Qui non compare mai chi la tiene in mano, nemmeno dopo che
- * l'amico si e' scoperto: a dirlo ci pensa il banner, come ha sempre fatto.
+ * l'amico si e' scoperto: a dirlo ci pensa l'oro con la scritta AMICO accanto
+ * al suo nome, che e' il posto giusto.
  */
 function CartaChiamata({
   carta,

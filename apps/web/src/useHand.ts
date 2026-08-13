@@ -163,6 +163,17 @@ const SECONDI_COL_TOCCO = 3;
 const PRIMA_DELLA_CHIUSURA_MS = 800;
 
 /**
+ * Quanto aspetta il "tocca a te" prima di farsi sentire. Il turno arriva
+ * nell'istante in cui la carta di chi ti precede si appoggia, e i due suoni
+ * partivano insieme: la carta del posto alla tua sinistra — quello che gioca
+ * sempre prima di te — si sentiva diversa da tutte le altre, perche' ci
+ * cadeva sopra il campanello del turno. La carta suona uguale per tutti da
+ * qualunque parte venga; il turno e' un'altra cosa e arriva dopo, a carta
+ * posata, che di suo dura settanta millesimi.
+ */
+const PRIMA_DEL_TOCCA_A_TE_MS = 200;
+
+/**
  * Il seed non si chiede piu' al giocatore, ma resta il modo per riprodurre
  * una smazzata segnalata: per questo finisce in console.
  */
@@ -788,8 +799,15 @@ export function useHand(): UseHand {
    *
    * Il momento e' fatto di fase, base e turno tutti insieme: finche' e' lo
    * stesso non si suona due volte, per quante volte lo schermo si ridisegni.
+   *
+   * Il campanello non parte sul colpo: aspetta che la carta di chi ti precede
+   * abbia finito di suonare. L'attesa sta in un timer suo, tenuto in un ref e
+   * non nella pulizia dell'effetto, perche' l'effetto rigira a ogni respiro
+   * della sessione e una pulizia normale se lo porterebbe via prima che suoni.
    */
   const turnoDetto = useRef('');
+  const tocco = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(tocco.current), []);
   useEffect(() => {
     const umano = session?.umano;
     if (session == null || umano == null || pause !== null) {
@@ -806,7 +824,8 @@ export function useHand(): UseHand {
     const momento = `${session.seed}:${session.phase}:${session.call.index}:${session.state?.completedTricks.length ?? 0}`;
     if (turnoDetto.current === momento) return;
     turnoDetto.current = momento;
-    suona('toccaATe');
+    clearTimeout(tocco.current);
+    tocco.current = setTimeout(() => suona('toccaATe'), PRIMA_DEL_TOCCA_A_TE_MS);
   }, [session, pause]);
 
   /**

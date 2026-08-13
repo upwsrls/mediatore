@@ -125,9 +125,9 @@ export function DealingScreen({ session, onDecide }: Props): ReactElement {
         carte={quante(seat)}
         diTurno={!distribuendo && seat === diTurno}
         punti={null}
-        // Il cartaro si vede finche' distribuisce: finito il giro il suo
-        // ruolo e' esaurito e l'unica evidenza torna a essere il turno.
-        cartaro={distribuendo && seat === session.dealer}
+        // Chi ha dato le carte si sa dal pallino, e si sa uguale da qui alla
+        // fine: sopra la sua testa non c'e' niente da leggere.
+        cartaro={seat === session.dealer}
         // L'oro sul chiamante si accende appena chiama e non si spegne piu':
         // da qui passa alla schermata del gioco, che lo legge dalle squadre.
         chiamante={seat === chiamante}

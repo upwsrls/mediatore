@@ -2,6 +2,7 @@ import type { Variant } from '@mediatore/engine';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { useAudio } from '../audio/useAudio';
+import { PartiteRegistrate } from '../components/PartiteRegistrate';
 import { PuntoDiVista } from '../components/PuntoDiVista';
 import type { Livello } from '../livello';
 import { LIVELLI } from '../livello';
@@ -162,6 +163,11 @@ export function SetupScreen({ onStart }: Props): ReactElement {
       >
         Vai al tavolo
       </button>
+
+      {/* Lo stesso quaderno che sta in fondo al conteggio, e lo stesso
+          componente: qui serve perche' il registro si porta via anche senza
+          giocare una mano. Come la', non c'e' quando non c'e' niente dentro. */}
+      <PartiteRegistrate />
     </section>
   );
 }
