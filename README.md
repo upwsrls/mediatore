@@ -152,8 +152,30 @@ A smazzata finita si legge il conteggio, e dopo `SECONDI_PRIMA_DI_RIPARTIRE`
 (`src/useHand.ts`) la smazzata dopo parte da sola, con la stessa compagnia e il
 mazziere che gira. Il conto alla rovescia sta a schermo e non si ferma: non c'e'
 niente da premere per continuare, e chi non vuole giocare la prossima esce dal
-tavolo e torna al setup. Il conto scorre anche mentre si rivedono le prese, e si
+tavolo e torna al setup. Il conto scorre anche mentre si rivedono le basi, e si
 annulla insieme al tavolo: nessun timer sopravvive all'uscita.
+
+A schermo la presa si chiama sempre BASE, in qualunque modalita': e' il termine
+del tavolo, non una scelta di livello. Nel codice i nomi che vengono dall'engine
+restano quelli — `Trick`, `completedTricks` — perche' non li legge nessun
+giocatore.
+
+Il tavolo ha due livelli (`src/livello.ts`), che spostano solo quello che si
+legge: regole, carte disabilitate e bot sono identici. Da PRINCIPIANTE si vedono
+i punti di ognuno che salgono base dopo base, il conto dei trionfi in cima
+(`trionfi: 6 usciti, 1 in giro`) e i due avvisi della riga di stato, il cappotto
+in corsa e il chiamante sotto soglia; da ESPERTO niente di tutto questo, i punti
+si tengono a mente come al bar e si leggono alla fine. Anche quei due avvisi sono
+punteggio travestito — uno dice che le basi sono andate tutte da una parte,
+l'altro che il chiamante sta sotto — e al bar li sai solo se hai contato: della
+riga di stato da esperto resta il riassunto, che al tavolo si dice a voce alta. Il conto dei trionfi non e'
+riscritto: e' quello che tiene il bot, `carteUscite` e `trionfiRimasti` da
+`@mediatore/bot`, letti attraverso la stessa vista di chi siede a quel posto —
+quindi dice quanti, mai dove. Il livello si sceglie al setup accanto a giocatori
+e variante, e si cambia al tavolo da una pillola in cima, come le carte scoperte;
+col server sara' del tavolo e non si potra' piu' cambiare. Nel registro resta
+segnato, e come per le carte scoperte vale il segno piu' generoso: un aiuto letto
+a meta' smazzata non si scancella.
 
 I posti si fissano quando nasce la smazzata e non cambiano piu' fino alla fine:
 a cambiare e' solo l'evidenza di chi e' di turno, e sotto il tavolo compare la

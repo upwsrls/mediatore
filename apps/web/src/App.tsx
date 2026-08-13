@@ -81,6 +81,7 @@ export function App(): ReactElement {
           pause={hand.pause}
           onGioca={hand.gioca}
           onCarteScoperte={hand.cambiaCarteScoperte}
+          onLivello={hand.cambiaLivello}
         />
       )}
 

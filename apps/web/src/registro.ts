@@ -9,6 +9,7 @@ import type {
   Variant,
 } from '@mediatore/engine';
 import { currentWinner, isAllyFor, legalPlaysFor } from '@mediatore/engine';
+import type { Livello } from './livello';
 
 /**
  * Il quaderno delle partite: si segna come gioca chi sta al tavolo, per
@@ -117,6 +118,12 @@ export interface Smazzata {
    * carte degli altri non gioca come al tavolo. Chi studia il file la salta.
    */
   carteScoperte: boolean;
+  /**
+   * Gli aiuti che il tavolo teneva a schermo: da principiante i punti di tutti
+   * e il conto dei trionfi, da esperto niente. Chi studia le partite deve
+   * sapere se quelle decisioni sono state prese contando a mente o leggendo.
+   */
+  livello: Livello;
   /** Come si chiamavano i posti, quando avevano un nome. */
   nomi: string[];
   chiamante: number | null;
@@ -197,6 +204,7 @@ export function apriSmazzata(dati: {
   controBot: boolean;
   postoUmano: number | null;
   carteScoperte: boolean;
+  livello: Livello;
   nomi: string[];
 }): void {
   inCorso = {
@@ -211,6 +219,7 @@ export function apriSmazzata(dati: {
     controBot: dati.controBot,
     postoUmano: dati.postoUmano,
     carteScoperte: dati.carteScoperte,
+    livello: dati.livello,
     nomi: dati.nomi,
     chiamante: null,
     chiamata: null,
@@ -240,6 +249,16 @@ export function annotaChiamante(caller: number | null, chiamata: TipoChiamata | 
 export function annotaCarteScoperte(): void {
   if (inCorso === null) return;
   inCorso.carteScoperte = true;
+}
+
+/**
+ * Il livello e' cambiato a smazzata avviata. Come per le carte scoperte resta
+ * il segno piu' generoso: chi ha letto i punti e i trionfi non puo' fingere di
+ * averli tenuti a mente, quindi da principiante non si torna piu' indietro.
+ */
+export function annotaLivello(livello: Livello): void {
+  if (inCorso === null || livello !== 'principiante') return;
+  inCorso.livello = 'principiante';
 }
 
 export function annotaAmico(cartaChiamata: string): void {

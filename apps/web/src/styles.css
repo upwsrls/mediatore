@@ -970,6 +970,16 @@ button.carta:active {
   cursor: pointer;
 }
 
+/*
+ * Il conto dei trionfi, l aiuto del principiante: sta in cima accanto al
+ * trionfo, perche' e' della stessa materia, e si legge senza dare nell occhio
+ * come una carta in tavola.
+ */
+.conto-trionfi {
+  font-variant-numeric: tabular-nums;
+  color: var(--oro-tenue);
+}
+
 .spia-accesa {
   border-color: var(--oro);
   background: var(--oro);
@@ -1083,8 +1093,8 @@ button.carta:active {
   color: var(--oro-tenue);
 }
 
-/* Le prese si rivedono in fila, con il nome sotto ogni carta. */
-.presa-rivista {
+/* Le basi si rivedono in fila, con il nome sotto ogni carta. */
+.base-rivista {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -1111,7 +1121,7 @@ button.carta:active {
   outline: 3px solid var(--oro);
 }
 
-/* Il vincitore della presa si tinge d oro solo se non ha gia' un ruolo suo. */
+/* Il vincitore della base si tinge d oro solo se non ha gia' un ruolo suo. */
 .giocata-vince .giocata-nome .giocatore-neutro {
   color: var(--oro);
   font-weight: 700;
@@ -1159,7 +1169,7 @@ button.carta:active {
 }
 
 /*
- * Chiusa la presa, le carte scivolano verso chi l ha vinta e sbiadiscono. Il
+ * Chiusa la base, le carte scivolano verso chi l ha vinta e sbiadiscono. Il
  * tempo per guardarle e' gia' passato prima: la raccolta arriva solo quando il
  * gioco lo dice, e dura quanto RACCOLTA_MS.
  */
@@ -1188,7 +1198,7 @@ button.carta:active {
   transform: translate(80%, -50%) scale(0.4) rotate(var(--pendenza, 0deg));
 }
 
-/* Chi non vuole animazioni vede solo la presa sparire, senza il volo. */
+/* Chi non vuole animazioni vede solo la base sparire, senza il volo. */
 @media (prefers-reduced-motion: reduce) {
   .tavolo-centro .giocate-raccolta .giocata {
     transition: opacity 200ms ease;
@@ -1400,7 +1410,7 @@ button.carta:active {
   color: #1a1a1a;
 }
 
-.banner-presa {
+.banner-base {
   background: #1f6f43;
   position: absolute;
   left: 50%;

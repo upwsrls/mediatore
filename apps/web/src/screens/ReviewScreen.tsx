@@ -12,13 +12,13 @@ interface Props {
 
 export function ReviewScreen({ state, onChiudi }: Props): ReactElement {
   const [indice, setIndice] = useState(0);
-  const prese = state.completedTricks;
-  const presa = prese[indice];
+  const basi = state.completedTricks;
+  const base = basi[indice];
 
-  if (presa === undefined) {
+  if (base === undefined) {
     return (
       <section className="schermata">
-        <p>nessuna presa da rivedere</p>
+        <p>nessuna base da rivedere</p>
         <button type="button" className="bottone-grande" onClick={onChiudi}>
           Torna al conteggio
         </button>
@@ -30,14 +30,14 @@ export function ReviewScreen({ state, onChiudi }: Props): ReactElement {
     <section className="schermata">
       <StatusLine state={state} />
       <h2>
-        presa {indice + 1} di {prese.length}
+        base {indice + 1} di {basi.length}
       </h2>
 
-      <div className="presa-rivista">
-        {presa.cards.map((giocata) => (
+      <div className="base-rivista">
+        {base.cards.map((giocata) => (
           <div
             key={giocata.card.id}
-            className={giocata.player === presa.winner ? 'giocata giocata-vince' : 'giocata'}
+            className={giocata.player === base.winner ? 'giocata giocata-vince' : 'giocata'}
           >
             <span className="giocata-nome">
               <PlayerName seat={giocata.player} state={state} compatto />
@@ -48,7 +48,7 @@ export function ReviewScreen({ state, onChiudi }: Props): ReactElement {
       </div>
 
       <p className="esito">
-        presa a <PlayerName seat={presa.winner} state={state} /> per {presa.points} punti
+        base a <PlayerName seat={base.winner} state={state} /> per {base.points} punti
       </p>
 
       <div className="riga-bottoni">
@@ -63,7 +63,7 @@ export function ReviewScreen({ state, onChiudi }: Props): ReactElement {
         <button
           type="button"
           className="bottone-piccolo"
-          disabled={indice >= prese.length - 1}
+          disabled={indice >= basi.length - 1}
           onClick={() => setIndice(indice + 1)}
         >
           successiva

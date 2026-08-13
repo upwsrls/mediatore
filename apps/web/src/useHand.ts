@@ -42,6 +42,7 @@ import {
 import { precaricaMazzo } from './carte/immagini';
 import { CARTA_DISTRIBUITA_MS, carteDaDistribuire } from './distribuzione';
 import { fissaNomiDelTavolo } from './labels';
+import type { Livello } from './livello';
 import { pescaNomi } from './nomi';
 import { ordineDiMano } from './ordine';
 import * as registro from './registro';
@@ -85,6 +86,11 @@ export interface Session {
    * contiene nemmeno.
    */
   carteScoperte: boolean;
+  /**
+   * Quanto aiuta il tavolo: da principiante i punti e i trionfi si leggono a
+   * schermo, da esperto si tengono a mente. Non cambia niente del gioco.
+   */
+  livello: Livello;
   /** Come si chiamano quelli seduti qui. Vuoto in hotseat: li' sono numeri. */
   nomi: string[];
   seed: number;
@@ -178,6 +184,7 @@ function nuovaSessione(
   puntoDiVista: number,
   controBot: boolean,
   carteScoperte: boolean,
+  livello: Livello,
   // Chi era gia' seduto: la compagnia non cambia fra una smazzata e l'altra,
   // si cambia solo cambiando tavolo.
   giaSeduti: string[] = [],
@@ -209,6 +216,7 @@ function nuovaSessione(
     // A carte scoperte si guarda solo contro i bot: in hotseat le carte
     // girano gia' per conto loro.
     carteScoperte: controBot && carteScoperte,
+    livello,
     nomi,
   });
   return {
@@ -220,6 +228,7 @@ function nuovaSessione(
     puntoDiVista: controBot ? POSTO_DELL_UMANO : puntoDiVista < players ? puntoDiVista : 0,
     umano: controBot ? POSTO_DELL_UMANO : null,
     carteScoperte: controBot && carteScoperte,
+    livello,
     nomi,
     seed,
     trump: dealt.trump,
@@ -286,11 +295,14 @@ export interface UseHand {
     puntoDiVista: number,
     controBot: boolean,
     carteScoperte: boolean,
+    livello: Livello,
   ) => void;
   /** Solo a smazzata finita: durante il gioco il tavolo non si tocca. */
   cambiaPuntoDiVista: (seat: number) => void;
   /** Scoprire e ricoprire le carte degli altri, anche a smazzata avviata. */
   cambiaCarteScoperte: (acceso: boolean) => void;
+  /** Alzare o abbassare gli aiuti, anche a smazzata avviata. */
+  cambiaLivello: (livello: Livello) => void;
   /** Il giocatore va detto: le dichiarazioni speciali arrivano anche fuori turno. */
   decidi: (player: number, action: CallAction) => void;
   confermaScarti: (scarti: Card[]) => void;
@@ -373,12 +385,13 @@ export function useHand(): UseHand {
       puntoDiVista: number,
       controBot: boolean,
       carteScoperte: boolean,
+      livello: Livello,
     ) => {
       try {
         const seed = nuovoSeed();
         casoBot.current = createRng(seed ^ SEME_DELLE_MOSSE);
         setSession(
-          nuovaSessione(players, variant, seed, 0, puntoDiVista, controBot, carteScoperte),
+          nuovaSessione(players, variant, seed, 0, puntoDiVista, controBot, carteScoperte, livello),
         );
         setError(null);
         setPause(null);
@@ -413,6 +426,16 @@ export function useHand(): UseHand {
     setSession((prev) =>
       prev === null || prev.umano === null ? prev : { ...prev, carteScoperte: acceso },
     );
+  }, []);
+
+  /**
+   * Il livello sposta solo quello che il tavolo mostra: regole, carte e bot
+   * restano identici. Nel registro resta il livello piu' generoso della
+   * smazzata, come per le carte scoperte: un aiuto letto non si scancella.
+   */
+  const cambiaLivello = useCallback((livello: Livello) => {
+    registro.annotaLivello(livello);
+    setSession((prev) => (prev === null ? prev : { ...prev, livello }));
   }, []);
 
   const decidi = useCallback(
@@ -637,6 +660,7 @@ export function useHand(): UseHand {
           session.puntoDiVista,
           session.umano !== null,
           session.carteScoperte,
+          session.livello,
           session.nomi,
         ),
       );
@@ -779,6 +803,7 @@ export function useHand(): UseHand {
     start,
     cambiaPuntoDiVista,
     cambiaCarteScoperte,
+    cambiaLivello,
     decidi,
     confermaScarti,
     apre,

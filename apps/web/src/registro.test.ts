@@ -1,8 +1,10 @@
 import { createDeck } from '@mediatore/engine';
 import { describe, expect, it } from 'vitest';
+import type { Livello } from './livello';
 import type { Esito } from './registro';
 import {
   annotaCarteScoperte,
+  annotaLivello,
   apriSmazzata,
   azzeraRegistro,
   chiudiSmazzata,
@@ -13,7 +15,7 @@ import {
 
 const MAZZO = createDeck();
 
-function smazzataFinta(carteScoperte = false): void {
+function smazzataFinta(carteScoperte = false, livello: Livello = 'principiante'): void {
   apriSmazzata({
     seed: 7,
     giocatori: 3,
@@ -26,6 +28,7 @@ function smazzataFinta(carteScoperte = false): void {
     controBot: false,
     postoUmano: null,
     carteScoperte,
+    livello,
     nomi: [],
   });
 }
@@ -93,5 +96,21 @@ describe('il quaderno delle partite', () => {
     annotaCarteScoperte();
     chiudiSmazzata(ESITO, null);
     expect(registro().smazzate[0]?.carteScoperte).toBe(true);
+  });
+
+  it('segna il livello del tavolo, cosi si sa quali aiuti aveva chi giocava', () => {
+    azzeraRegistro();
+    smazzataFinta(false, 'esperto');
+    chiudiSmazzata(ESITO, null);
+    expect(registro().smazzate[0]?.livello).toBe('esperto');
+  });
+
+  it('gli aiuti accesi a meta smazzata restano segnati, come le carte scoperte', () => {
+    azzeraRegistro();
+    smazzataFinta(false, 'esperto');
+    annotaLivello('principiante');
+    annotaLivello('esperto');
+    chiudiSmazzata(ESITO, null);
+    expect(registro().smazzate[0]?.livello).toBe('principiante');
   });
 });

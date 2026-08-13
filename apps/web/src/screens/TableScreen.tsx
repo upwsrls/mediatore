@@ -13,8 +13,11 @@ import { cartePerFila, postiDellaMano } from '../mano';
 import { ordinaCarte, secondoOrdine } from '../ordine';
 import type { Posizione } from '../posti';
 import { disposizione, inclinazione } from '../posti';
+import type { Livello } from '../livello';
+import { conAiuti, livelloOpposto } from '../livello';
 import { cartaChiamata, schieramenti } from '../roles';
 import { chiTieneLaCarta } from '../spia';
+import { contaTrionfi } from '../trionfo';
 import type { Session, TrickPause } from '../useHand';
 
 interface Props {
@@ -23,6 +26,7 @@ interface Props {
   pause: TrickPause | null;
   onGioca: (cardId: string) => void;
   onCarteScoperte: (acceso: boolean) => void;
+  onLivello: (livello: Livello) => void;
 }
 
 export function TableScreen({
@@ -31,12 +35,17 @@ export function TableScreen({
   pause,
   onGioca,
   onCarteScoperte,
+  onLivello,
 }: Props): ReactElement {
   const [monteAperto, setMonteAperto] = useState(false);
 
   const { caller, friend } = schieramenti(state);
   const punti = puntiCorrenti(state);
-  const numeroPresa = Math.min(state.completedTricks.length + 1, session.config.tricks);
+  const numeroBase = Math.min(state.completedTricks.length + 1, session.config.tricks);
+
+  // Gli aiuti del principiante: i punti di tutti a vista e il conto dei
+  // trionfi. Da esperto il tavolo tace e i conti li tiene chi gioca.
+  const aiuti = conAiuti(session.livello);
 
   // I posti si fissano a inizio smazzata e non cambiano piu': in basso resta
   // sempre il punto di vista, gli altri gli girano attorno nell'ordine in cui
@@ -72,13 +81,13 @@ export function TableScreen({
         ? caller
         : chiVedeIlMonte(chiamata, caller);
 
-  // E comunque solo a presa chiusa, quando tocca a lui. Contro i bot il
+  // E comunque solo a base chiusa, quando tocca a lui. Contro i bot il
   // bottone esiste solo se a vedere il monte e' chi sta davanti allo schermo:
   // le carte dei bot non si guardano.
-  const presaChiusa = state.currentTrick.plays.length === 0 && pause === null;
+  const baseChiusa = state.currentTrick.plays.length === 0 && pause === null;
   const monteMio =
     vedeIlMonte !== null && (session.umano === null || vedeIlMonte === session.umano);
-  const puoVedereMonte = monteMio && state.turn === vedeIlMonte && presaChiusa;
+  const puoVedereMonte = monteMio && state.turn === vedeIlMonte && baseChiusa;
 
   // La carta che ha girato il trionfo resta scoperta per tutti fino alla fine,
   // qualunque cosa sia stata dichiarata. L'unica eccezione e' la chiamata
@@ -119,7 +128,7 @@ export function TableScreen({
         state={state}
         carte={state.hands[seat]?.length ?? 0}
         diTurno={seat === state.turn}
-        punti={punti[seat] ?? 0}
+        punti={aiuti ? (punti[seat] ?? 0) : null}
         spiate={spiate(seat)}
         players={session.config.players}
       />
@@ -129,12 +138,12 @@ export function TableScreen({
   // Due avvisi brevi su una riga sola: il tavolo ha bisogno dell'altezza.
   const noteMonte = [
     chiamata === 'sola' ? 'nella sola non si scambia' : null,
-    puoVedereMonte ? null : 'visibile al chiamante a presa chiusa',
+    puoVedereMonte ? null : 'visibile al chiamante a base chiusa',
   ].filter((nota): nota is string => nota !== null);
 
   return (
     <section className="schermata tavolo">
-      <StatusLine state={state} />
+      <StatusLine state={state} aiuti={aiuti} />
 
       <header className="intestazione">
         <span>
@@ -144,8 +153,19 @@ export function TableScreen({
           </strong>
         </span>
         <span>
-          presa {numeroPresa} di {session.config.tricks}
+          base {numeroBase} di {session.config.tricks}
         </span>
+        {aiuti && <ContoDeiTrionfi state={state} seat={chiMostra} />}
+        {/* Il livello si cambia al tavolo come si scoprono le carte: un
+            comando piccolo, in disparte, che dice a che livello si sta. */}
+        <button
+          type="button"
+          className="spia"
+          title={`passa a ${livelloOpposto(session.livello)}`}
+          onClick={() => onLivello(livelloOpposto(session.livello))}
+        >
+          {session.livello}
+        </button>
         {/* Acceso, l'interruttore e' anche l'avviso: sta sempre in cima e si
             legge da lontano, cosi' non ci si dimentica di star guardando le
             carte degli altri. */}
@@ -229,8 +249,8 @@ export function TableScreen({
         {/* L annuncio dura un attimo: si appoggia sopra il tavolo invece di
             aprirsi una riga tutta sua, che spingerebbe giu' la mano. */}
         {pause !== null && (
-          <div className="banner banner-presa">
-            presa a <PlayerName seat={pause.winner} state={state} /> per {pause.points} punti
+          <div className="banner banner-base">
+            base a <PlayerName seat={pause.winner} state={state} /> per {pause.points} punti
           </div>
         )}
       </div>
@@ -312,6 +332,19 @@ export function TableScreen({
 }
 
 /**
+ * Il conto dei trionfi, l'aiuto del principiante: quanti sono passati e quanti
+ * ne girano ancora. Quanti, mai dove: dove stanno e' il mestiere di chi gioca.
+ */
+function ContoDeiTrionfi({ state, seat }: { state: HandState; seat: number }): ReactElement {
+  const { usciti, inGiro } = contaTrionfi(state, seat);
+  return (
+    <span className="conto-trionfi">
+      trionfi: {usciti} usciti, {inGiro} in giro
+    </span>
+  );
+}
+
+/**
  * La carta chiamata, scoperta in cima al tavolo dall'annuncio fino alla fine.
  * Sta accanto al monte perche' e' della stessa natura: roba del tavolo, non
  * di un giocatore. Qui non compare mai chi la tiene in mano, nemmeno dopo che
@@ -345,8 +378,8 @@ interface ModaleProps {
 
 function ModaleMonte({ state, onChiudi }: ModaleProps): ReactElement {
   const { friend, conIlChiamante } = schieramenti(state);
-  const basi = state.completedTricks.filter((presa) => conIlChiamante.includes(presa.winner));
-  const puntiBasi = basi.reduce((somma, presa) => somma + presa.points, 0);
+  const basi = state.completedTricks.filter((base) => conIlChiamante.includes(base.winner));
+  const puntiBasi = basi.reduce((somma, base) => somma + base.points, 0);
 
   return (
     <div className="modale" role="dialog">
@@ -365,17 +398,17 @@ function ModaleMonte({ state, onChiudi }: ModaleProps): ReactElement {
         )}
 
         <h3>
-          basi {friend === null ? 'del chiamante' : 'della coppia'}: {basi.length} prese,{' '}
-          {puntiBasi} punti
+          basi {friend === null ? 'del chiamante' : 'della coppia'}: {basi.length}, {puntiBasi}{' '}
+          punti
         </h3>
         <div className="basi">
-          {basi.map((presa, indice) => (
+          {basi.map((base, indice) => (
             <div key={indice} className="base">
               <span className="giocata-nome">
-                <PlayerName seat={presa.winner} state={state} compatto /> · {presa.points}
+                <PlayerName seat={base.winner} state={state} compatto /> · {base.points}
               </span>
               <div className="mano">
-                {presa.cards.map((giocata) => (
+                {base.cards.map((giocata) => (
                   <Card key={giocata.card.id} card={giocata.card} size="piccola" />
                 ))}
               </div>

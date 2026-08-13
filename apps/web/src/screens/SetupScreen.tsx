@@ -2,6 +2,8 @@ import type { Variant } from '@mediatore/engine';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { PuntoDiVista } from '../components/PuntoDiVista';
+import type { Livello } from '../livello';
+import { LIVELLI } from '../livello';
 
 interface Props {
   onStart: (
@@ -10,6 +12,7 @@ interface Props {
     puntoDiVista: number,
     controBot: boolean,
     carteScoperte: boolean,
+    livello: Livello,
   ) => void;
 }
 
@@ -19,6 +22,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
   const [puntoDiVista, setPuntoDiVista] = useState(0);
   const [controBot, setControBot] = useState(false);
   const [carteScoperte, setCarteScoperte] = useState(false);
+  const [livello, setLivello] = useState<Livello>('principiante');
 
   // La variante amico esiste solo in cinque: cambiando tavolo si torna al monte.
   function cambiaGiocatori(numero: number): void {
@@ -96,6 +100,27 @@ export function SetupScreen({ onStart }: Props): ReactElement {
         {players !== 5 && <p className="nota">la variante amico richiede 5 giocatori</p>}
       </fieldset>
 
+      <fieldset>
+        <legend>livello</legend>
+        <div className="riga-bottoni">
+          {LIVELLI.map((scelta) => (
+            <button
+              key={scelta}
+              type="button"
+              className={`scelta ${livello === scelta ? 'scelta-attiva' : ''}`}
+              onClick={() => setLivello(scelta)}
+            >
+              {scelta}
+            </button>
+          ))}
+        </div>
+        <p className="nota">
+          {livello === 'principiante'
+            ? 'il tavolo tiene il conto: punti di tutti e trionfi usciti'
+            : 'punti e trionfi si tengono a mente: i punti si vedono alla fine'}
+        </p>
+      </fieldset>
+
       {/* Contro i bot il posto e' uno solo, il proprio: non c'e' piu' niente
           da scegliere. */}
       {!controBot && (
@@ -112,7 +137,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
       <button
         type="button"
         className="bottone-grande"
-        onClick={() => onStart(players, variant, puntoDiVista, controBot, carteScoperte)}
+        onClick={() => onStart(players, variant, puntoDiVista, controBot, carteScoperte, livello)}
       >
         Vai al tavolo
       </button>

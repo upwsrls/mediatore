@@ -1,4 +1,5 @@
-import type { Card, DealResult, TableConfig } from '@mediatore/engine';
+import { carteUscite, trionfiRimasti, vistaDaStato } from '@mediatore/bot';
+import type { Card, DealResult, HandState, TableConfig } from '@mediatore/engine';
 
 /**
  * La carta che fissa il trionfo, presa dal risultato di deal().
@@ -21,4 +22,27 @@ export function cartaDelTrionfo(
 
   if (candidata === undefined || candidata.suit !== dealt.trump) return null;
   return candidata;
+}
+
+/** Quanti trionfi sono passati per il tavolo e quanti ne girano ancora. */
+export interface ContoDeiTrionfi {
+  usciti: number;
+  inGiro: number;
+}
+
+/**
+ * Il conto dei trionfi come lo tiene chi gioca: dieci in tutto, meno quelli
+ * giocati, meno quelli che ha in mano. Quello che resta gira fra gli altri, e
+ * dove sia non lo dice: solo quanti.
+ *
+ * E' lo stesso conto del bot, preso da dove sta: la memoria del bot vede
+ * esattamente quello che vede un giocatore seduto a quel posto, quindi da qui
+ * non trapela niente delle mani altrui.
+ */
+export function contaTrionfi(state: HandState, seat: number): ContoDeiTrionfi {
+  const vista = vistaDaStato(state, seat);
+  return {
+    usciti: carteUscite(vista).filter((carta) => carta.suit === state.trump).length,
+    inGiro: trionfiRimasti(vista).length,
+  };
 }
