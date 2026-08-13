@@ -156,6 +156,12 @@ export const SECONDI_PRIMA_DI_RIPARTIRE = 10;
 const SECONDI_COL_TOCCO = 3;
 
 /**
+ * Quanto dura la fanfara del cappotto: la chiusura del conteggio la lascia
+ * finire invece di suonarci sopra.
+ */
+const DOPO_LA_FANFARA_MS = 800;
+
+/**
  * Il seed non si chiede piu' al giocatore, ma resta il modo per riprodurre
  * una smazzata segnalata: per questo finisce in console.
  */
@@ -746,8 +752,18 @@ export function useHand(): UseHand {
     // Tutte le basi da una parte sola: capita una volta ogni tante serate, e
     // quando capita si sente. Il conto lo fa l'engine, qui si legge soltanto.
     const finale = session.state;
-    if (finale !== null && finale.finished && scoreHand(finale).cappotto !== null) {
-      suona('cappotto');
+    const cappotto = finale !== null && finale.finished && scoreHand(finale).cappotto !== null;
+    if (cappotto) suona('cappotto');
+    // Poi la chiusura, che non festeggia: dice solo che le carte si posano.
+    // Suona qui dentro e quindi una volta per smazzata, che aprire e chiudere
+    // "rivedi la smazzata" non rimette in moto niente. Dopo un cappotto
+    // aspetta che la fanfara finisca, cosi' si sentono in fila e non l'una
+    // sopra l'altra.
+    let chiusura: ReturnType<typeof setTimeout> | undefined;
+    if (cappotto) {
+      chiusura = setTimeout(() => suona('smazzataChiusa'), DOPO_LA_FANFARA_MS);
+    } else {
+      suona('smazzataChiusa');
     }
     // Il conto lo tiene il battito per conto suo: il numero a schermo e' una
     // copia, e il tocco degli ultimi secondi non puo' dipendere da lei.
@@ -764,6 +780,7 @@ export function useHand(): UseHand {
     return () => {
       clearInterval(battito);
       clearTimeout(ripartenza);
+      clearTimeout(chiusura);
       setSecondiAllaRipartenza(SECONDI_PRIMA_DI_RIPARTIRE);
     };
   }, [session?.phase, session?.seed]);

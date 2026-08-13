@@ -31,6 +31,8 @@ export type Suono =
   | 'amicoScoperto'
   /** Tutte le basi da una parte sola: la cosa piu' rara e piu' cara. */
   | 'cappotto'
+  /** Le carte si posano e si contano: la smazzata e' finita. */
+  | 'smazzataChiusa'
   /** Il proprio turno che arriva. */
   | 'toccaATe'
   /** Gli ultimi secondi prima che il tavolo riparta da solo. */
@@ -179,6 +181,16 @@ export const SUONI: Record<Suono, Ricetta> = {
     { forma: 'tono', onda: 'triangle', hz: 659, durata: 0.16, volume: 0.3, ritardo: 0.12 },
     { forma: 'tono', onda: 'triangle', hz: 784, durata: 0.16, volume: 0.3, ritardo: 0.24 },
     { forma: 'tono', onda: 'triangle', hz: 1047, durata: 0.42, volume: 0.34, ritardo: 0.36 },
+  ),
+
+  // Il conteggio che si apre. Non festeggia: la smazzata puo' essere finita
+  // bene o male, e chi ha perso non vuole una fanfara. Due note basse che
+  // SCENDONO — al contrario della base vinta e del cappotto, che salgono —
+  // come le carte che si posano sul tavolo quando non c'e' piu' niente da
+  // giocare.
+  smazzataChiusa: sintetizzato(
+    { forma: 'tono', onda: 'triangle', hz: 330, durata: 0.16, volume: 0.22 },
+    { forma: 'tono', onda: 'triangle', hz: 220, durata: 0.3, volume: 0.24, ritardo: 0.12 },
   ),
 
   // Roba di servizio: si devono sentire e dimenticare.

@@ -180,9 +180,10 @@ a meta' smazzata non si scancella.
 Il tavolo suona (`src/audio/`). Il catalogo sta in `suoni.ts` — un nome per ogni
 cosa che si sente: la carta appoggiata, l'uccisione, la carta che si
 distribuisce, la base vinta, il monte raccolto, le quattro dichiarazioni,
-l'amico scoperto, il cappotto, il proprio turno, il tocco degli ultimi tre
-secondi prima che il tavolo riparta, e i due del setup — la scelta e l'ingresso
-al tavolo. Chi li fa suonare e' `motore.ts`, e le schermate non lo sanno:
+l'amico scoperto, il cappotto, la smazzata che si chiude, il proprio turno, il
+tocco degli ultimi tre secondi prima che il tavolo riparta, e i due del setup —
+la scelta e l'ingresso al tavolo. Chi li fa suonare e' `motore.ts`, e le
+schermate non lo sanno:
 chiedono `suona('cartaGiocata')` e basta. Adesso sono segnaposto sintetizzati con
 l'API audio del browser — niente da scaricare, funziona offline, pesa zero — e
 per mettere al loro posto i suoni veri si cambia la ricetta nel catalogo in
@@ -199,6 +200,15 @@ del catalogo che ha un `respiro`: altezza e volume si scostano un po' a ogni
 carta, come in un mazzo vero. Lo scarto esce dal numero della carta
 (`conRespiro`), non dal caso: la stessa carta suona sempre uguale, per quante
 volte lo schermo si ridisegni.
+
+Il conteggio finale non si apre in silenzio, ma nemmeno festeggia: la smazzata
+puo' essere andata bene o male, e chi ha perso non vuole una fanfara. Due note
+basse che scendono — al contrario della base vinta e del cappotto, che salgono —
+e dicono solo che le carte si posano. Suona una volta per smazzata, dentro
+l'effetto che apre il conto alla rovescia: aprire e chiudere "rivedi la
+smazzata" non lo rimette in moto, e i secondi che scorrono nemmeno. Dopo un
+cappotto arriva in fila, non sopra: la fanfara si prende i suoi otto decimi di
+secondo e poi si chiude.
 
 Anche il setup risponde, se no sembra spento: un tocco leggero quando la scelta
 cambia — giocatori, variante, livello, gli interruttori, il posto da cui si

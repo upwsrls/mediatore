@@ -56,6 +56,20 @@ describe('catalogo dei suoni', () => {
     expect(durata('scelta')).toBeLessThan(durata('vaiAlTavolo'));
   });
 
+  it('la chiusura scende, mentre la base vinta e il cappotto salgono', () => {
+    // E' quello che la distingue dalle altre due: si chiude, non si festeggia.
+    const scende = voci('smazzataChiusa');
+    const prima = scende[0] as Voce;
+    const ultima = scende[scende.length - 1] as Voce;
+    expect(ultima.hz).toBeLessThan(prima.hz);
+    for (const nome of ['baseVinta', 'cappotto'] as const) {
+      const salgono = voci(nome);
+      expect((salgono[salgono.length - 1] as Voce).hz).toBeGreaterThan((salgono[0] as Voce).hz);
+    }
+    // E non e' una fanfara: il cappotto resta l'unica cosa che festeggia.
+    expect(pienezza('smazzataChiusa')).toBeLessThan(pienezza('cappotto'));
+  });
+
   it('piu sale la posta piu la dichiarazione si sente', () => {
     const scala: TipoChiamata[] = ['normale', 'sola', 'colonna', 'chiSeLaSente'];
     const pesi = scala.map((chiamata) => pienezza(suonoDellaChiamata(chiamata)));
