@@ -56,6 +56,23 @@ describe('catalogo dei suoni', () => {
     expect(durata('scelta')).toBeLessThan(durata('vaiAlTavolo'));
   });
 
+  it('il passo sta sotto qualunque dichiarazione', () => {
+    // Passare e' lasciar correre: si sente, perche' e' cosi' che si capisce
+    // che il giro va avanti, ma non dichiara niente e non deve sembrare che
+    // lo faccia.
+    const dichiarazioni: TipoChiamata[] = ['normale', 'sola', 'colonna', 'chiSeLaSente'];
+    for (const chiamata of dichiarazioni) {
+      const dichiarazione = suonoDellaChiamata(chiamata);
+      expect(pienezza('passo'), chiamata).toBeLessThan(pienezza(dichiarazione));
+      expect(durata('passo'), chiamata).toBeLessThan(durata(dichiarazione));
+    }
+    // Chi se la sente senza nessuno che si faccia avanti e' un passo di tutti:
+    // stessa famiglia, piu' basso e piu' lungo, perche' li' il giro si spegne.
+    const solo = (nome: Suono): Voce => voci(nome)[0] as Voce;
+    expect(solo('nessunoSeLaSente').hz).toBeLessThan(solo('passo').hz);
+    expect(pienezza('nessunoSeLaSente')).toBeLessThan(pienezza('meLaSento'));
+  });
+
   it('la chiusura scende, mentre la base vinta e il cappotto salgono', () => {
     // E' quello che la distingue dalle altre due: si chiude, non si festeggia.
     const scende = voci('smazzataChiusa');

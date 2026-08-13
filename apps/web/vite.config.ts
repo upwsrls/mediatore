@@ -35,6 +35,8 @@ export default defineConfig({
       },
     }),
   ],
-  // L'engine e' un package del workspace in TypeScript sorgente: niente pre-bundling.
-  optimizeDeps: { exclude: ['@mediatore/engine'] },
+  // Engine e bot sono pacchetti del workspace, collegati da pnpm e pubblicati in
+  // TypeScript sorgente (`exports: ./src/index.ts`): Vite non li pre-impacchetta
+  // e li serve come sorgente, quindi qui non serve nessun optimizeDeps. Se un
+  // giorno avranno una build in `dist`, andranno esclusi tutti e due insieme.
 });

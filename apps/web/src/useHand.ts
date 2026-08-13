@@ -156,10 +156,10 @@ export const SECONDI_PRIMA_DI_RIPARTIRE = 10;
 const SECONDI_COL_TOCCO = 3;
 
 /**
- * Quanto dura la fanfara del cappotto: la chiusura del conteggio la lascia
- * finire invece di suonarci sopra.
+ * Quanto aspetta la chiusura del conteggio quando c'e' appena stato un altro
+ * suono: e' la fanfara del cappotto, la piu' lunga che possa precederla.
  */
-const DOPO_LA_FANFARA_MS = 800;
+const PRIMA_DELLA_CHIUSURA_MS = 800;
 
 /**
  * Il seed non si chiede piu' al giocatore, ma resta il modo per riprodurre
@@ -489,8 +489,11 @@ export function useHand(): UseHand {
       }
       setError(null);
       // Ogni dichiarazione ha la sua voce, e piu' la posta e' alta piu' si
-      // sente. Chi passa non dice niente, e infatti non suona niente.
-      if (action.tipo === 'chiama') suona(suonoDellaChiamata(action.chiamata));
+      // sente. Anche il passo si sente, che e' l'altra meta' della stessa
+      // decisione: sotto a tutte, ma c'e', perche' e' cosi' che si capisce
+      // che il giro sta andando avanti. Vale per chi guarda e per i bot: al
+      // tavolo si sente comunque chi passa.
+      suona(action.tipo === 'chiama' ? suonoDellaChiamata(action.chiamata) : 'passo');
       registro.annota(
         registro.decisioneChiamata({
           giocatore: player,
@@ -586,6 +589,7 @@ export function useHand(): UseHand {
       if (caller === null) return;
       try {
         setError(null);
+        suona('meLaSento');
         registro.annota({
           tipo: 'apertura',
           giocatore: seat,
@@ -609,6 +613,7 @@ export function useHand(): UseHand {
   const nessunoSeLaSente = useCallback(() => {
     if (session === null || session.call.caller === null) return;
     setError(null);
+    suona('nessunoSeLaSente');
     const quote = settleChiSeLaSenteScaduto(session.config, session.call.caller);
     registro.chiudiSmazzata(
       {
@@ -756,12 +761,14 @@ export function useHand(): UseHand {
     if (cappotto) suona('cappotto');
     // Poi la chiusura, che non festeggia: dice solo che le carte si posano.
     // Suona qui dentro e quindi una volta per smazzata, che aprire e chiudere
-    // "rivedi la smazzata" non rimette in moto niente. Dopo un cappotto
-    // aspetta che la fanfara finisca, cosi' si sentono in fila e non l'una
-    // sopra l'altra.
+    // "rivedi la smazzata" non rimette in moto niente. E non suona mai sopra
+    // quello che l'ha appena preceduta — la fanfara del cappotto, o il
+    // "nessuno se la sente" che chiude la smazzata senza giocarla: in quei
+    // due casi aspetta il suo turno e si sentono in fila.
+    const qualcosaPrima = cappotto || session.scaduta === true;
     let chiusura: ReturnType<typeof setTimeout> | undefined;
-    if (cappotto) {
-      chiusura = setTimeout(() => suona('smazzataChiusa'), DOPO_LA_FANFARA_MS);
+    if (qualcosaPrima) {
+      chiusura = setTimeout(() => suona('smazzataChiusa'), PRIMA_DELLA_CHIUSURA_MS);
     } else {
       suona('smazzataChiusa');
     }

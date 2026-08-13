@@ -27,6 +27,12 @@ export type Suono =
   | 'chiamataSola'
   | 'chiamataColonna'
   | 'chiamataChiSeLaSente'
+  /** Si lascia correre: l'altra meta' della stessa decisione. */
+  | 'passo'
+  /** Uno si fa avanti e apre contro chi se la sente. */
+  | 'meLaSento'
+  /** Non si e' fatto avanti nessuno: il giro si spegne e non si gioca. */
+  | 'nessunoSeLaSente'
   /** L'amico esce allo scoperto giocando la carta chiamata. */
   | 'amicoScoperto'
   /** Tutte le basi da una parte sola: la cosa piu' rara e piu' cara. */
@@ -167,6 +173,26 @@ export const SUONI: Record<Suono, Ricetta> = {
     { forma: 'tono', onda: 'triangle', hz: 660, durata: 0.26, volume: 0.24, ritardo: 0.12 },
     { forma: 'tono', onda: 'triangle', hz: 990, durata: 0.24, volume: 0.22, ritardo: 0.18 },
   ),
+
+  // Il passo e' l'altra meta' della decisione, e si sente per lo stesso motivo:
+  // e' cosi' che si capisce che il giro va avanti. Ma non dichiara niente, e
+  // quindi sta sotto tutte le chiamate — bassa, corta, spenta.
+  passo: sintetizzato({ forma: 'tono', onda: 'sine', hz: 300, durata: 0.07, volume: 0.11 }),
+
+  // Chi se la sente: uno si fa avanti, ed e' una dichiarazione anche quella;
+  // oppure non si fa avanti nessuno, e allora il giro si spegne — un passo
+  // piu' basso e piu' lungo, che chiude invece di passare la mano.
+  meLaSento: sintetizzato(
+    { forma: 'tono', onda: 'triangle', hz: 494, durata: 0.12, volume: 0.2 },
+    { forma: 'tono', onda: 'triangle', hz: 740, durata: 0.14, volume: 0.2, ritardo: 0.08 },
+  ),
+  nessunoSeLaSente: sintetizzato({
+    forma: 'tono',
+    onda: 'sine',
+    hz: 260,
+    durata: 0.18,
+    volume: 0.13,
+  }),
 
   // L'amico si scopre: una nota che sale, la sorpresa di chi era nascosto.
   amicoScoperto: sintetizzato(

@@ -123,6 +123,29 @@ pnpm --filter @mediatore/web preview   # anteprima della build, utile per provar
 pnpm --filter @mediatore/web test      # i moduli puri dell'app, per esempio i posti a tavola
 ```
 
+Se il dev server continua a servire la versione vecchia di un file dopo averlo
+modificato, non e' la cache: e' il watcher che non riceve le notifiche del
+filesystem. Succede quando il server gira dentro un ambiente isolato — una
+sandbox, un container, un volume di rete — dove le FSEvents di macOS non
+arrivano al processo. Il rimedio e' una riga, e non serve toccare la
+configurazione:
+
+```sh
+CHOKIDAR_USEPOLLING=1 pnpm --filter @mediatore/web dev   # il watcher guarda invece di ascoltare
+```
+
+Fuori dall'isolamento non serve, e non va usato per abitudine: guardare i file a
+intervalli costa CPU, mentre le notifiche non costano niente. Vale per tutto il
+monorepo: coi collegamenti di pnpm, anche le modifiche a `packages/engine` e
+`packages/bot` arrivano al tavolo senza riavviare niente.
+
+Un dev server alla volta, pero'. Due server sulla stessa app si dividono la
+stessa cartella `node_modules/.vite`, e quando il secondo ricalcola le
+dipendenze il primo continua a servire indirizzi che non esistono piu': il
+risultato e' due copie di React, e la pagina resta bianca con un
+`Cannot read properties of null (reading 'useState')` in console. Non e' un bug
+del codice: si riavvia il server e torna tutto.
+
 Il tavolo si guarda da un posto solo, il punto di vista, che sta in basso: gli
 altri gli si dispongono intorno partendo dalla sua destra e proseguendo in senso
 antiorario, cioe' nell'ordine di gioco, cosi' l'evidenza del turno gira a schermo
@@ -179,18 +202,20 @@ a meta' smazzata non si scancella.
 
 Il tavolo suona (`src/audio/`). Il catalogo sta in `suoni.ts` — un nome per ogni
 cosa che si sente: la carta appoggiata, l'uccisione, la carta che si
-distribuisce, la base vinta, il monte raccolto, le quattro dichiarazioni,
-l'amico scoperto, il cappotto, la smazzata che si chiude, il proprio turno, il
-tocco degli ultimi tre secondi prima che il tavolo riparta, e i due del setup —
-la scelta e l'ingresso al tavolo. Chi li fa suonare e' `motore.ts`, e le
-schermate non lo sanno:
+distribuisce, la base vinta, il monte raccolto, le decisioni della chiamata —
+le quattro dichiarazioni, il passo, chi si fa avanti e il giro che si spegne
+senza nessuno — l'amico scoperto, il cappotto, la smazzata che si chiude, il
+proprio turno, il tocco degli ultimi tre secondi prima che il tavolo riparta, e
+i due del setup — la scelta e l'ingresso al tavolo. Chi li fa suonare e'
+`motore.ts`, e le schermate non lo sanno:
 chiedono `suona('cartaGiocata')` e basta. Adesso sono segnaposto sintetizzati con
 l'API audio del browser — niente da scaricare, funziona offline, pesa zero — e
 per mettere al loro posto i suoni veri si cambia la ricetta nel catalogo in
 `{ tipo: 'registrato', file: '/suoni/carta.webm' }`: il motore sa gia' suonare
 anche quelli. Il criterio delle voci: quello che conta di piu' suona piu' pieno e
-piu' lungo — uccisione e cappotto in cima, le dichiarazioni in scala di posta, il
-tocco del conto alla rovescia in fondo — e niente arriva al mezzo secondo.
+piu' lungo — uccisione e cappotto in cima, le dichiarazioni in scala di posta,
+il passo sotto tutte quante, il tocco del conto alla rovescia in fondo — e
+niente arriva al mezzo secondo.
 
 La distribuzione fa eccezione a una regola sola: non e' un suono per l'evento,
 e' un soffio per ogni carta, che parte col suo volo e finisce con lui, quindi il
@@ -206,9 +231,18 @@ puo' essere andata bene o male, e chi ha perso non vuole una fanfara. Due note
 basse che scendono — al contrario della base vinta e del cappotto, che salgono —
 e dicono solo che le carte si posano. Suona una volta per smazzata, dentro
 l'effetto che apre il conto alla rovescia: aprire e chiudere "rivedi la
-smazzata" non lo rimette in moto, e i secondi che scorrono nemmeno. Dopo un
-cappotto arriva in fila, non sopra: la fanfara si prende i suoi otto decimi di
-secondo e poi si chiude.
+smazzata" non lo rimette in moto, e i secondi che scorrono nemmeno. Quando c'e'
+stato un suono un attimo prima — la fanfara del cappotto, o il "nessuno se la
+sente" che chiude la smazzata senza giocarla — arriva in fila e non sopra: gli
+lascia gli otto decimi di secondo che gli servono e poi chiude.
+
+Nella chiamata si sentono tutte le decisioni, non solo le dichiarazioni: chi
+passa fa un suono basso e corto, sotto ogni chiamata, perche' passare e' lasciar
+correre e non dichiarare niente — ma si sente lo stesso, che e' cosi' che si
+capisce che il giro va avanti. Vale per chi guarda e per i bot, che passano
+dalla stessa `decidi`. Nella chi se la sente, chi si fa avanti ha la sua nota
+che sale e il giro senza nessuno una nota piu' bassa e piu' lunga del passo: un
+passo di tutti insieme.
 
 Anche il setup risponde, se no sembra spento: un tocco leggero quando la scelta
 cambia — giocatori, variante, livello, gli interruttori, il posto da cui si
