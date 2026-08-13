@@ -177,6 +177,47 @@ col server sara' del tavolo e non si potra' piu' cambiare. Nel registro resta
 segnato, e come per le carte scoperte vale il segno piu' generoso: un aiuto letto
 a meta' smazzata non si scancella.
 
+Il tavolo suona (`src/audio/`). Il catalogo sta in `suoni.ts` — un nome per ogni
+cosa che si sente: la carta appoggiata, l'uccisione, la carta che si
+distribuisce, la base vinta, il monte raccolto, le quattro dichiarazioni,
+l'amico scoperto, il cappotto, il proprio turno, il tocco degli ultimi tre
+secondi prima che il tavolo riparta, e i due del setup — la scelta e l'ingresso
+al tavolo. Chi li fa suonare e' `motore.ts`, e le schermate non lo sanno:
+chiedono `suona('cartaGiocata')` e basta. Adesso sono segnaposto sintetizzati con
+l'API audio del browser — niente da scaricare, funziona offline, pesa zero — e
+per mettere al loro posto i suoni veri si cambia la ricetta nel catalogo in
+`{ tipo: 'registrato', file: '/suoni/carta.webm' }`: il motore sa gia' suonare
+anche quelli. Il criterio delle voci: quello che conta di piu' suona piu' pieno e
+piu' lungo — uccisione e cappotto in cima, le dichiarazioni in scala di posta, il
+tocco del conto alla rovescia in fondo — e niente arriva al mezzo secondo.
+
+La distribuzione fa eccezione a una regola sola: non e' un suono per l'evento,
+e' un soffio per ogni carta, che parte col suo volo e finisce con lui, quindi il
+rumore accompagna il giro fino all'ultima carta invece di spegnersi al terzo
+secondo. Trentasei colpi di fila stancherebbero, e allora quello e' l'unico suono
+del catalogo che ha un `respiro`: altezza e volume si scostano un po' a ogni
+carta, come in un mazzo vero. Lo scarto esce dal numero della carta
+(`conRespiro`), non dal caso: la stessa carta suona sempre uguale, per quante
+volte lo schermo si ridisegni.
+
+Anche il setup risponde, se no sembra spento: un tocco leggero quando la scelta
+cambia — giocatori, variante, livello, gli interruttori, il posto da cui si
+guarda — e una nota piu' piena e decisa per il bottone che porta al tavolo.
+Ripremere l'opzione gia' presa non e' una scelta, e non suona: ogni comando
+passa da `scegli`, che confronta prima e dopo.
+
+L'audio parte acceso, si spegne dalla pillola AUDIO in cima al tavolo e la scelta
+resta fra una sessione e l'altra. L'impianto si sveglia al primo tocco, che al
+setup e' proprio una di quelle scelte: il contesto nasce addormentato e ci mette
+qualche millisecondo ad alzarsi, e allora il suono non si butta ma aspetta il
+risveglio e parte li'. Altrimenti il tocco che accende l'impianto sarebbe
+l'unico a non sentirsi. Dove il browser espone la levetta del silenzioso (`audioSession`) il
+tavolo la rispetta. Se l'audio non parte, non decodifica o va storto in qualunque
+modo, si gioca in silenzio: dal motore non esce mai un errore a schermo. Suonano
+solo gli eventi del catalogo e le scelte del setup — al tavolo nessun tocco di
+interfaccia — perche' un'app di carte che suona a ogni cosa e' peggio di una
+muta.
+
 I posti si fissano quando nasce la smazzata e non cambiano piu' fino alla fine:
 a cambiare e' solo l'evidenza di chi e' di turno, e sotto il tavolo compare la
 mano di chi tocca, con scritto a chi passare il telefono. Il punto di vista si

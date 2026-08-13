@@ -1,6 +1,7 @@
 import type { Variant } from '@mediatore/engine';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
+import { useAudio } from '../audio/useAudio';
 import { PuntoDiVista } from '../components/PuntoDiVista';
 import type { Livello } from '../livello';
 import { LIVELLI } from '../livello';
@@ -23,6 +24,19 @@ export function SetupScreen({ onStart }: Props): ReactElement {
   const [controBot, setControBot] = useState(false);
   const [carteScoperte, setCarteScoperte] = useState(false);
   const [livello, setLivello] = useState<Livello>('principiante');
+  const audio = useAudio();
+
+  /**
+   * Ogni scelta del setup passa di qui: si sente solo quando cambia davvero,
+   * perche' ripremere quella gia' presa non e' una scelta, e' un dito che
+   * torna dov'era. Il tocco arriva prima del cambio, cosi' risponde subito
+   * anche quando la scelta rifa' mezza schermata.
+   */
+  function scegli<T>(prima: T, adesso: T, applica: (valore: T) => void): void {
+    if (Object.is(prima, adesso)) return;
+    audio.suona('scelta');
+    applica(adesso);
+  }
 
   // La variante amico esiste solo in cinque: cambiando tavolo si torna al monte.
   function cambiaGiocatori(numero: number): void {
@@ -44,7 +58,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
         <input
           type="checkbox"
           checked={controBot}
-          onChange={(evento) => setControBot(evento.target.checked)}
+          onChange={(evento) => scegli(controBot, evento.target.checked, setControBot)}
         />
         gioca contro i bot
       </label>
@@ -56,7 +70,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
           <input
             type="checkbox"
             checked={carteScoperte}
-            onChange={(evento) => setCarteScoperte(evento.target.checked)}
+            onChange={(evento) => scegli(carteScoperte, evento.target.checked, setCarteScoperte)}
           />
           vedi le carte di tutti (per correggere i bot)
         </label>
@@ -70,7 +84,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
               key={numero}
               type="button"
               className={`scelta ${players === numero ? 'scelta-attiva' : ''}`}
-              onClick={() => cambiaGiocatori(numero)}
+              onClick={() => scegli(players, numero, cambiaGiocatori)}
             >
               {numero}
             </button>
@@ -84,7 +98,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
           <button
             type="button"
             className={`scelta ${variant === 'monte' ? 'scelta-attiva' : ''}`}
-            onClick={() => setVariant('monte')}
+            onClick={() => scegli(variant, 'monte', setVariant)}
           >
             monte
           </button>
@@ -92,7 +106,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
             type="button"
             className={`scelta ${variant === 'amico' ? 'scelta-attiva' : ''}`}
             disabled={players !== 5}
-            onClick={() => setVariant('amico')}
+            onClick={() => scegli(variant, 'amico', setVariant)}
           >
             amico
           </button>
@@ -108,7 +122,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
               key={scelta}
               type="button"
               className={`scelta ${livello === scelta ? 'scelta-attiva' : ''}`}
-              onClick={() => setLivello(scelta)}
+              onClick={() => scegli(livello, scelta, setLivello)}
             >
               {scelta}
             </button>
@@ -126,7 +140,11 @@ export function SetupScreen({ onStart }: Props): ReactElement {
       {!controBot && (
         <fieldset>
           <legend>prova</legend>
-          <PuntoDiVista players={players} valore={puntoDiVista} onCambia={setPuntoDiVista} />
+          <PuntoDiVista
+            players={players}
+            valore={puntoDiVista}
+            onCambia={(seat) => scegli(puntoDiVista, seat, setPuntoDiVista)}
+          />
           <p className="nota">
             in hotseat il tavolo si guarda da un posto solo: col server ognuno vedra' se
             stesso in basso sul proprio telefono
@@ -137,7 +155,10 @@ export function SetupScreen({ onStart }: Props): ReactElement {
       <button
         type="button"
         className="bottone-grande"
-        onClick={() => onStart(players, variant, puntoDiVista, controBot, carteScoperte, livello)}
+        onClick={() => {
+          audio.suona('vaiAlTavolo');
+          onStart(players, variant, puntoDiVista, controBot, carteScoperte, livello);
+        }}
       >
         Vai al tavolo
       </button>

@@ -39,6 +39,8 @@ import {
   pausaChiamata,
   pausaScarto,
 } from './automa';
+import { suona } from './audio/motore';
+import { suonoDellaChiamata } from './audio/suoni';
 import { precaricaMazzo } from './carte/immagini';
 import { CARTA_DISTRIBUITA_MS, carteDaDistribuire } from './distribuzione';
 import { fissaNomiDelTavolo } from './labels';
@@ -150,6 +152,9 @@ const RACCOLTA_MS = 600;
  */
 export const SECONDI_PRIMA_DI_RIPARTIRE = 10;
 
+/** Gli ultimi secondi del conto alla rovescia si sentono, uno per uno. */
+const SECONDI_COL_TOCCO = 3;
+
 /**
  * Il seed non si chiede piu' al giocatore, ma resta il modo per riprodurre
  * una smazzata segnalata: per questo finisce in console.
@@ -241,6 +246,18 @@ function nuovaSessione(
     ordine: [],
     scaduta: false,
   };
+}
+
+/**
+ * Si sta tagliando: trionfo su una base aperta in un altro palo. Al tavolo e'
+ * il momento piu' rumoroso della mano — si esclama e la carta si getta — e
+ * infatti ha un suono suo, diverso da quello della carta appoggiata.
+ */
+function uccide(state: HandState, cardId: string): boolean {
+  const aperta = state.currentTrick.plays[0]?.card;
+  if (aperta === undefined || aperta.suit === state.trump) return false;
+  const giocata = (state.hands[state.turn] ?? []).find((carta) => carta.id === cardId);
+  return giocata?.suit === state.trump;
 }
 
 /**
@@ -346,9 +363,15 @@ export function useHand(): UseHand {
     return () => clearTimeout(timer);
   }, [pause]);
 
-  // Poi si raccoglie, e solo a volo finito si passa alla presa dopo.
+  // Poi si raccoglie, e solo a volo finito si passa alla presa dopo. E' qui
+  // che la base si sente chiudere, insieme alle carte che volano via: sul
+  // colpo dell'ultima carta c'era gia' il suono di quella.
   useEffect(() => {
     if (pause === null || !pause.raccolta) return undefined;
+    // L'ultima base si porta via anche il monte, quando c'e': in quel caso il
+    // monte se lo prende tutto lui, che e' il rumore piu' grosso dei due.
+    const finita = session?.state?.finished === true;
+    suona(finita && (session?.monte.length ?? 0) > 0 ? 'monteRaccolto' : 'baseVinta');
     const timer = setTimeout(() => {
       setPause(null);
       setSession((prev) =>
@@ -377,6 +400,16 @@ export function useHand(): UseHand {
     }, CARTA_DISTRIBUITA_MS);
     return () => clearTimeout(timer);
   }, [session?.phase, session?.seed, session?.distribuite]);
+
+  // Ogni carta si sente arrivare, e il fruscio parte con lei: il rumore
+  // accompagna la distribuzione fino all'ultima, come al tavolo. Sta per conto
+  // suo e non guarda la fase, perche' l'ultima carta arriva insieme alla
+  // chiamata e quella non deve restare muta. Il numero della carta va al
+  // motore: e' da li' che ogni fruscio prende il suo scarto, sempre lo stesso.
+  useEffect(() => {
+    const arrivate = session?.distribuite ?? 0;
+    if (arrivate > 0) suona('cartaDistribuita', arrivate);
+  }, [session?.seed, session?.distribuite]);
 
   const start = useCallback(
     (
@@ -449,6 +482,9 @@ export function useHand(): UseHand {
         return;
       }
       setError(null);
+      // Ogni dichiarazione ha la sua voce, e piu' la posta e' alta piu' si
+      // sente. Chi passa non dice niente, e infatti non suona niente.
+      if (action.tipo === 'chiama') suona(suonoDellaChiamata(action.chiamata));
       registro.annota(
         registro.decisioneChiamata({
           giocatore: player,
@@ -620,6 +656,17 @@ export function useHand(): UseHand {
       }
 
       setError(null);
+      suona(uccide(corrente, cardId) ? 'uccisione' : 'cartaGiocata');
+      // L'amico esce allo scoperto giocando la carta chiamata: da qui in poi
+      // il tavolo sa chi e', e la cosa si sente.
+      if (
+        corrente.alliance.kind === 'amico' &&
+        corrente.alliance.friend === null &&
+        prossimo.alliance.kind === 'amico' &&
+        prossimo.alliance.friend !== null
+      ) {
+        suona('amicoScoperto');
+      }
       // La fotografia va presa sullo stato di prima: e' quello che chi ha
       // scelto aveva davanti.
       registro.annota(registro.decisioneGiocata(corrente, cardId, quantoCiHaMesso()));
@@ -696,8 +743,19 @@ export function useHand(): UseHand {
   useEffect(() => {
     if (session?.phase !== 'end') return undefined;
     setSecondiAllaRipartenza(SECONDI_PRIMA_DI_RIPARTIRE);
+    // Tutte le basi da una parte sola: capita una volta ogni tante serate, e
+    // quando capita si sente. Il conto lo fa l'engine, qui si legge soltanto.
+    const finale = session.state;
+    if (finale !== null && finale.finished && scoreHand(finale).cappotto !== null) {
+      suona('cappotto');
+    }
+    // Il conto lo tiene il battito per conto suo: il numero a schermo e' una
+    // copia, e il tocco degli ultimi secondi non puo' dipendere da lei.
+    let rimasti = SECONDI_PRIMA_DI_RIPARTIRE;
     const battito = setInterval(() => {
-      setSecondiAllaRipartenza((rimasti) => (rimasti > 0 ? rimasti - 1 : 0));
+      rimasti = rimasti > 0 ? rimasti - 1 : 0;
+      setSecondiAllaRipartenza(rimasti);
+      if (rimasti > 0 && rimasti <= SECONDI_COL_TOCCO) suona('contoAllaRovescia');
     }, 1000);
     const ripartenza = setTimeout(
       () => riparti.current(),
@@ -709,6 +767,34 @@ export function useHand(): UseHand {
       setSecondiAllaRipartenza(SECONDI_PRIMA_DI_RIPARTIRE);
     };
   }, [session?.phase, session?.seed]);
+
+  /**
+   * Il proprio turno che arriva, detto a voce. Vale contro i bot, dove si
+   * aspetta guardando altrove: in hotseat il telefono gira di mano e chi lo
+   * prende sa gia' che tocca a lui.
+   *
+   * Il momento e' fatto di fase, base e turno tutti insieme: finche' e' lo
+   * stesso non si suona due volte, per quante volte lo schermo si ridisegni.
+   */
+  const turnoDetto = useRef('');
+  useEffect(() => {
+    const umano = session?.umano;
+    if (session == null || umano == null || pause !== null) {
+      return;
+    }
+    const tocca =
+      session.phase === 'call'
+        ? currentCaller(session.call) === umano
+        : session.phase === 'play' && session.state !== null && !session.state.finished
+          ? session.state.turn === umano
+          : false;
+    if (!tocca) return;
+
+    const momento = `${session.seed}:${session.phase}:${session.call.index}:${session.state?.completedTricks.length ?? 0}`;
+    if (turnoDetto.current === momento) return;
+    turnoDetto.current = momento;
+    suona('toccaATe');
+  }, [session, pause]);
 
   /**
    * La regia dei bot: quando tocca a uno di loro si sceglie la mossa e la si

@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { useAudio } from './audio/useAudio';
 import { DealingScreen } from './screens/DealingScreen';
 import { DiscardScreen } from './screens/DiscardScreen';
 import { EndScreen } from './screens/EndScreen';
@@ -10,6 +11,9 @@ import { WaitScreen } from './screens/WaitScreen';
 import { useHand } from './useHand';
 
 export function App(): ReactElement {
+  // L'impianto audio si sveglia al primo tocco, che e' il bottone del setup:
+  // il browser non lascia suonare prima, e non c'e' niente da chiedere.
+  useAudio();
   const hand = useHand();
   const session = hand.session;
   const state = session?.state ?? null;

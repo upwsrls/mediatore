@@ -4,6 +4,7 @@ import type { CSSProperties, ReactElement } from 'react';
 import { useState } from 'react';
 import { Card } from '../components/Card';
 import { PlayerName } from '../components/PlayerName';
+import { useAudio } from '../audio/useAudio';
 import { StatusLine } from '../components/StatusLine';
 import { SuitIcon } from '../components/SuitIcon';
 import { MonteInTavola, PostoTavolo } from '../components/Tavolo';
@@ -38,6 +39,7 @@ export function TableScreen({
   onLivello,
 }: Props): ReactElement {
   const [monteAperto, setMonteAperto] = useState(false);
+  const audio = useAudio();
 
   const { caller, friend } = schieramenti(state);
   const punti = puntiCorrenti(state);
@@ -156,6 +158,17 @@ export function TableScreen({
           base {numeroBase} di {session.config.tricks}
         </span>
         {aiuti && <ContoDeiTrionfi state={state} seat={chiMostra} />}
+        {/* L'audio parte acceso e si spegne da qui. La scelta se la ricorda
+            l'impianto, che la ritrova anche al tavolo dopo. */}
+        <button
+          type="button"
+          className="spia"
+          aria-pressed={audio.acceso}
+          title={audio.acceso ? 'spegni i suoni del tavolo' : 'riaccendi i suoni del tavolo'}
+          onClick={() => audio.cambia(!audio.acceso)}
+        >
+          {audio.acceso ? 'audio' : 'muto'}
+        </button>
         {/* Il livello si cambia al tavolo come si scoprono le carte: un
             comando piccolo, in disparte, che dice a che livello si sta. */}
         <button
