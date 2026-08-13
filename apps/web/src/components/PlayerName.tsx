@@ -34,12 +34,24 @@ export function PlayerName({
   const ruolo: Ruolo =
     state === null ? (chiamante ? 'chiamante' : 'neutro') : ruoloDi(seat, state);
   const etichetta = etichettaRuolo(ruolo);
+  /*
+   * Il chiamante la parola non la mostra: l'oro pieno sul nome dice gia' che e'
+   * lui, e sui posti di lato quei pixel servono alle carte. Resta scritta per
+   * chi ascolta lo schermo, che il colore da solo non gli dice niente.
+   * L'amico invece la tiene sotto gli occhi: il suo oro tenue e l'oro pieno del
+   * chiamante stanno a 1,6:1 di contrasto, troppo vicini perche' si distinguano
+   * senza leggere.
+   */
+  const soloLetta = ruolo === 'chiamante';
 
   return (
     <span className={`giocatore giocatore-${ruolo}`}>
       {compatto ? nomeCompatto(seat) : nomeGiocatore(seat)}
-      {/* Il colore non basta: il ruolo e' scritto anche a parole. */}
-      {etichetta !== null && <span className="giocatore-ruolo">{etichetta}</span>}
+      {etichetta !== null && (
+        <span className={soloLetta ? 'giocatore-ruolo solo-letta' : 'giocatore-ruolo'}>
+          {etichetta}
+        </span>
+      )}
       {cartaro && <span className="giocatore-cartaro">cartaro</span>}
     </span>
   );

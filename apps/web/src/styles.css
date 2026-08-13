@@ -156,6 +156,25 @@ legend {
 }
 
 /*
+ * Sta nel DOM e non sullo schermo: la legge chi ascolta, e non porta via un
+ * pixel a niente. Fuori dal flusso, quindi nemmeno il gap del posto la conta.
+ * Il maiuscolo lo perde: tutto maiuscolo arriva anche a chi ascolta, e certi
+ * lettori le parole cosi' le sillabano lettera per lettera.
+ */
+.solo-letta {
+  text-transform: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
  * Il cartaro non e' una squadra: e' un compito che dura una distribuzione.
  * Niente oro, niente fondo pieno, solo un contorno tratteggiato neutro.
  */
@@ -1025,8 +1044,9 @@ button.carta:active {
   overflow-wrap: anywhere;
 }
 
-/* Nome e ruolo vanno a capo dentro la colonna: la pillola del chiamante e'
-   piu' larga del posto e altrimenti finirebbe fuori dal tavolo. */
+/* Nome e ruolo vanno a capo dentro la colonna: la pillola dell'amico, che il
+   ruolo lo tiene scritto, e' piu' larga del posto e altrimenti finirebbe fuori
+   dal tavolo. */
 .tavolo-spiato .lato .posto-nome .giocatore {
   display: flex;
   flex-wrap: wrap;
@@ -1175,40 +1195,106 @@ button.carta:active {
 }
 
 /*
- * Chiusa la base, le carte scivolano verso chi l ha vinta e sbiadiscono. Il
- * tempo per guardarle e' gia' passato prima: la raccolta arriva solo quando il
- * gioco lo dice, e dura quanto RACCOLTA_MS.
+ * Chiusa la base, le carte si raccolgono. Il tempo per guardarle e' gia'
+ * passato prima: la raccolta arriva solo quando il gioco lo dice, e dura
+ * quanto RACCOLTA_MS. Senza animazioni resta questo e basta — le carte si
+ * spengono dove sono, senza raccolta.
  */
 .giocate-raccolta .giocata {
   opacity: 0;
-  transition:
-    transform 600ms ease,
-    opacity 600ms ease;
+  transition: opacity 200ms ease;
 }
 
+/*
+ * Dove tira la mano che raccoglie: dal centro verso il posto di chi ha vinto.
+ * E' anche il modo di capire chi ha preso senza leggere il nome, quindi lo
+ * spostamento e' largo e va tutto da una parte. I posti alti dei lati partono
+ * in diagonale verso l'alto, quelli bassi verso il basso: cosi' i due posti
+ * dello stesso lato non si confondono.
+ */
 .giocate-raccolta.raccolta-basso .giocata {
-  transform: translate(-50%, 120%) scale(0.4) rotate(var(--pendenza, 0deg));
+  --verso-x: 0px;
+  --verso-y: 96px;
 }
 
 .giocate-raccolta.raccolta-alto .giocata {
-  transform: translate(-50%, -220%) scale(0.4) rotate(var(--pendenza, 0deg));
+  --verso-x: 0px;
+  --verso-y: -96px;
 }
 
-.giocate-raccolta.raccolta-sinistra-1 .giocata,
+.giocate-raccolta.raccolta-sinistra-1 .giocata {
+  --verso-x: -128px;
+  --verso-y: 26px;
+}
+
 .giocate-raccolta.raccolta-sinistra-2 .giocata {
-  transform: translate(-180%, -50%) scale(0.4) rotate(var(--pendenza, 0deg));
+  --verso-x: -128px;
+  --verso-y: -34px;
 }
 
-.giocate-raccolta.raccolta-destra-1 .giocata,
+.giocate-raccolta.raccolta-destra-1 .giocata {
+  --verso-x: 128px;
+  --verso-y: 26px;
+}
+
 .giocate-raccolta.raccolta-destra-2 .giocata {
-  transform: translate(80%, -50%) scale(0.4) rotate(var(--pendenza, 0deg));
+  --verso-x: 128px;
+  --verso-y: -34px;
 }
 
-/* Chi non vuole animazioni vede solo la base sparire, senza il volo. */
-@media (prefers-reduced-motion: reduce) {
-  .tavolo-centro .giocate-raccolta .giocata {
-    transition: opacity 200ms ease;
+/*
+ * La raccolta vera e' in due tempi dentro gli stessi 600ms: prima le carte
+ * scivolano tutte nello stesso punto in mezzo al tavolo — sovrapposte, un filo
+ * piu' dritte e sfalsate di due pixel, cioe' un mazzetto — e solo dopo il
+ * mazzetto se ne va verso il vincitore e si spegne li'.
+ *
+ * Il primo tempo sta nel left/top, che e' l'unico modo di portare al centro
+ * carte che partono da sei posti diversi; il secondo nel transform. Il 40%
+ * dei fotogrammi e --stretta sono lo stesso istante: se si tocca uno va
+ * toccato anche l'altro, o le carte si mettono in viaggio prima di trovarsi.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .giocate-raccolta .giocata {
+    --raccolta: 600ms;
+    --stretta: 240ms;
+    --pendenza-mazzetto: calc(var(--pendenza, 0deg) * 0.35);
+    left: calc(50% + var(--sfalso-x, 0px));
+    top: calc(50% + var(--sfalso-y, 0px));
+    transition:
+      left var(--stretta) ease-out,
+      top var(--stretta) ease-out;
+    animation: raccolta-della-base var(--raccolta) forwards;
+  }
+
+  /* Nel mazzetto la carta che ha vinto sta sopra: e' lei che se le porta via. */
+  .tavolo-centro .giocata-vince {
+    z-index: 3;
+  }
+}
+
+@keyframes raccolta-della-base {
+  0% {
     transform: translate(-50%, -50%) rotate(var(--pendenza, 0deg));
+    opacity: 1;
+    /* Si stringono e si fermano insieme, come carte che si appoggiano. */
+    animation-timing-function: ease-out;
+  }
+
+  40% {
+    transform: translate(-50%, -50%) rotate(var(--pendenza-mazzetto)) scale(0.94);
+    opacity: 1;
+    /* Poi la mano se le tira via, e da ferma prende velocita'. */
+    animation-timing-function: ease-in;
+  }
+
+  60% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(calc(-50% + var(--verso-x, 0px)), calc(-50% + var(--verso-y, 0px)))
+      rotate(var(--pendenza-mazzetto)) scale(0.5);
+    opacity: 0;
   }
 }
 

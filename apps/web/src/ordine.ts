@@ -5,9 +5,13 @@ import { SUITS, cardStrength } from '@mediatore/engine';
  * Come si sistemano le carte in mano: prima il trionfo, poi denari, coppe,
  * spade e bastoni; dentro ogni seme dalla piu' forte alla piu' debole.
  * Ordinamento di sola presentazione: l'engine non sa nulla dell'ordine.
+ *
+ * Senza trionfo — cioe' mentre si distribuisce, che nessuno l'ha ancora
+ * girato — i pali restano nel loro ordine naturale: le carte si raggruppano
+ * uguale, ma la mano non lascia capire quale palo comandera'.
  */
-export function ordinaCarte(cards: readonly Card[], trump: Suit): Card[] {
-  const semi = [trump, ...SUITS.filter((suit) => suit !== trump)];
+export function ordinaCarte(cards: readonly Card[], trump: Suit | null): Card[] {
+  const semi = trump === null ? SUITS : [trump, ...SUITS.filter((suit) => suit !== trump)];
   return [...cards].sort(
     (a, b) =>
       semi.indexOf(a.suit) - semi.indexOf(b.suit) || cardStrength(b.rank) - cardStrength(a.rank),

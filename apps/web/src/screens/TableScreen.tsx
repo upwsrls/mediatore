@@ -13,7 +13,7 @@ import { SEMI, motivoNonGiocabile, nomeGiocatore, obbligoCorrente, puntiCorrenti
 import { cartePerFila, postiDellaMano } from '../mano';
 import { ordinaCarte, secondoOrdine } from '../ordine';
 import type { Posizione } from '../posti';
-import { disposizione, inclinazione } from '../posti';
+import { disposizione, inclinazione, sfalsoNelMazzetto } from '../posti';
 import type { Livello } from '../livello';
 import { conAiuti, livelloOpposto } from '../livello';
 import { cartaChiamata, schieramenti } from '../roles';
@@ -233,21 +233,30 @@ export function TableScreen({
                 : `giocate giocate-raccolta raccolta-${posizioni[pause.winner] ?? 'basso'}`
             }
           >
-            {inTavola.map((giocata) => (
-              <div
-                key={giocata.card.id}
-                className={[
-                  'giocata',
-                  `giocata-da-${posizioni[giocata.player] ?? 'basso'}`,
-                  pause !== null && giocata.player === pause.winner ? 'giocata-vince' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                style={{ '--pendenza': `${inclinazione(giocata.card.id)}deg` } as CSSProperties}
-              >
-                <Card card={giocata.card} size="piccola" />
-              </div>
-            ))}
+            {inTavola.map((giocata) => {
+              const sfalso = sfalsoNelMazzetto(giocata.card.id);
+              return (
+                <div
+                  key={giocata.card.id}
+                  className={[
+                    'giocata',
+                    `giocata-da-${posizioni[giocata.player] ?? 'basso'}`,
+                    pause !== null && giocata.player === pause.winner ? 'giocata-vince' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  style={
+                    {
+                      '--pendenza': `${inclinazione(giocata.card.id)}deg`,
+                      '--sfalso-x': `${sfalso.x}px`,
+                      '--sfalso-y': `${sfalso.y}px`,
+                    } as CSSProperties
+                  }
+                >
+                  <Card card={giocata.card} size="piccola" />
+                </div>
+              );
+            })}
           </div>
         </div>
 

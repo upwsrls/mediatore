@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Posizione } from './posti';
-import { disposizione, eDiLato, inclinazione } from './posti';
+import { disposizione, eDiLato, inclinazione, sfalsoNelMazzetto } from './posti';
 
 /** Il giro del tavolo a partire da chi sta in basso, nell'ordine di gioco. */
 function giroDa(players: number, inBasso: number): Posizione[] {
@@ -109,6 +109,31 @@ describe('eDiLato', () => {
     expect(eDiLato('destra-2')).toBe(true);
     expect(eDiLato('alto')).toBe(false);
     expect(eDiLato('basso')).toBe(false);
+  });
+});
+
+describe('sfalsoNelMazzetto', () => {
+  it('sfalsa sempre nello stesso modo la stessa carta', () => {
+    expect(sfalsoNelMazzetto('denari-re')).toEqual(sfalsoNelMazzetto('denari-re'));
+  });
+
+  it('resta di pochi pixel, e non mette tutte le carte nello stesso punto', () => {
+    const carte = ['denari-asso', 'coppe-3', 'spade-7', 'bastoni-re', 'denari-2'];
+    const scarti = carte.map((id) => sfalsoNelMazzetto(id));
+    for (const { x, y } of scarti) {
+      expect(Number.isInteger(x)).toBe(true);
+      expect(Number.isInteger(y)).toBe(true);
+      expect(Math.abs(x)).toBeLessThanOrEqual(4);
+      expect(Math.abs(y)).toBeLessThanOrEqual(4);
+    }
+    // Un mazzetto, non una pila: le carte non finiscono tutte sovrapposte.
+    expect(new Set(scarti.map(({ x, y }) => `${x},${y}`)).size).toBeGreaterThan(1);
+  });
+
+  it('non sfalsa dove pende: due segni diversi presi dallo stesso id', () => {
+    const carte = ['denari-asso', 'coppe-3', 'spade-7', 'bastoni-re', 'denari-2', 'coppe-fante'];
+    const coppie = carte.map((id) => `${inclinazione(id)}:${sfalsoNelMazzetto(id).x}`);
+    expect(new Set(coppie).size).toBeGreaterThan(1);
   });
 });
 

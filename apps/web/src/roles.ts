@@ -60,6 +60,11 @@ export function ruoloDi(seat: number, state: HandState): Ruolo {
   return 'neutro';
 }
 
+/**
+ * La parola del ruolo. Quella del chiamante non si scrive piu' accanto al nome
+ * — a dirlo basta l'oro pieno — ma resta nel DOM per chi ascolta lo schermo:
+ * chi la mostra decide, qui si sa soltanto come si chiamano i ruoli.
+ */
 export function etichettaRuolo(ruolo: Ruolo): string | null {
   if (ruolo === 'chiamante') return 'chiama';
   if (ruolo === 'amico') return 'amico';

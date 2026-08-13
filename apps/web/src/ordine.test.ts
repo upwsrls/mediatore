@@ -48,6 +48,20 @@ describe('ordinaCarte', () => {
     ]);
   });
 
+  it('senza trionfo raggruppa per palo senza dire quale comanda', () => {
+    // Mentre si distribuisce nessuno ha girato il trionfo: le carte si
+    // raggruppano uguale, ma nessun palo passa davanti agli altri.
+    const mano = [carta('bastoni', 4), carta('denari', 2), carta('bastoni', 7), carta('coppe', 3)];
+    expect(nomi(ordinaCarte(mano, null))).toEqual([
+      'denari-2',
+      'coppe-3',
+      'bastoni-7',
+      'bastoni-4',
+    ]);
+    // E' l'ordine naturale, quello che si ottiene tenendo i denari per primi.
+    expect(nomi(ordinaCarte(mano, null))).toEqual(nomi(ordinaCarte(mano, 'denari')));
+  });
+
   it('non tocca la mano che riceve', () => {
     const mano = [carta('bastoni', 2), carta('denari', 7)];
     const copia = [...mano];

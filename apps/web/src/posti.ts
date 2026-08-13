@@ -50,6 +50,16 @@ export function eDiLato(posizione: Posizione): boolean {
 }
 
 const PENDENZA_MASSIMA = 6;
+const SFALSO_MASSIMO = 4;
+
+/** Un numero sempre uguale per la stessa carta: e' l'id, ridotto a una cifra. */
+function impronta(cardId: string): number {
+  let somma = 0;
+  for (let i = 0; i < cardId.length; i += 1) {
+    somma = (somma * 31 + cardId.charCodeAt(i)) % 9973;
+  }
+  return somma;
+}
 
 /**
  * Di quanto sta storta una carta appoggiata sul tavolo. Deriva dall'id, non
@@ -57,9 +67,20 @@ const PENDENZA_MASSIMA = 6;
  * ogni ridisegno di React.
  */
 export function inclinazione(cardId: string): number {
-  let somma = 0;
-  for (let i = 0; i < cardId.length; i += 1) {
-    somma = (somma * 31 + cardId.charCodeAt(i)) % 9973;
-  }
-  return (somma % (PENDENZA_MASSIMA * 2 + 1)) - PENDENZA_MASSIMA;
+  return (impronta(cardId) % (PENDENZA_MASSIMA * 2 + 1)) - PENDENZA_MASSIMA;
+}
+
+/**
+ * Di quanti pixel una carta resta fuori posto nel mazzetto, quando la base si
+ * raccoglie in mezzo al tavolo. Pochi, in croce, e sempre gli stessi per la
+ * stessa carta: e' quello che fa un mazzetto tirato su con la mano invece di
+ * una pila fatta col righello.
+ */
+export function sfalsoNelMazzetto(cardId: string): { x: number; y: number } {
+  const segno = impronta(cardId);
+  const largo = SFALSO_MASSIMO * 2 + 1;
+  return {
+    x: (segno % largo) - SFALSO_MASSIMO,
+    y: (Math.floor(segno / largo) % largo) - SFALSO_MASSIMO,
+  };
 }

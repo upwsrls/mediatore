@@ -3,7 +3,6 @@ import { currentCaller } from '@mediatore/engine';
 import type { CSSProperties, ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { Card } from '../components/Card';
-import { PlayerName } from '../components/PlayerName';
 import { SuitIcon } from '../components/SuitIcon';
 import { MonteInTavola, PostoTavolo } from '../components/Tavolo';
 import { DORSO } from '../carte/immagini';
@@ -74,13 +73,20 @@ export function DealingScreen({ session, onDecide }: Props): ReactElement {
       ? quanteNeHa(session.distribuite, seat, session.dealer, players)
       : (session.hands[seat]?.length ?? 0);
 
-  // Mentre arrivano le carte stanno nell'ordine in cui sono state date: il
-  // trionfo si scopre alla fine, e prima di allora nemmeno il modo in cui la
-  // mano e' sistemata deve lasciarlo capire. Alla chiamata si sistemano, e da
-  // li' in poi restano cosi' per tutta la smazzata.
+  // Le carte si sistemano man mano che arrivano, come al tavolo: ognuna entra
+  // al posto che le spetta e le altre si spostano per farle largo, con la
+  // stessa transizione con cui la mano si ricompatta giocando.
+  //
+  // Per palo e per forza, ma senza il trionfo in testa: mentre si distribuisce
+  // non l'ha ancora girato nessuno, e una mano che tiene un palo per primo lo
+  // direbbe in anticipo. Il trionfo passa davanti quando si scopre, cioe'
+  // quando comincia la chiamata, e da li' l'ordine e' quello di sempre.
   const tutte = session.hands[chiMostra] ?? [];
-  const mano = distribuendo ? tutte : ordinaCarte(tutte, session.trump);
-  const posti = postiDellaMano(mano).slice(0, quante(chiMostra));
+  // Le arrivate sono le prime della mano: quello e' l'ordine in cui l'engine
+  // le ha date, e il giro del tavolo le consegna in quello stesso ordine.
+  const arrivate = distribuendo ? tutte.slice(0, quante(chiMostra)) : tutte;
+  const mano = ordinaCarte(arrivate, distribuendo ? null : session.trump);
+  const posti = postiDellaMano(mano, session.config.handSize);
 
   // L'ultima carta uscita dal mazzo e' quella che si vede volare.
   const inVolo =
@@ -203,13 +209,13 @@ export function DealingScreen({ session, onDecide }: Props): ReactElement {
                 />
               )}
             </div>
-          ) : diTurno !== null ? (
-            <p className="nota nota-centro">
-              chiama <PlayerName seat={diTurno} state={null} />
-            </p>
           ) : (
-            // Detto una volta, il tempo di sentirlo, e poi via: chi ha chiamato
-            // resta scritto in oro sul suo nome, che e' il posto giusto.
+            // Finite le carte il centro resta vuoto: di chi sia il turno lo dice
+            // il bordo acceso attorno al posto, come per tutto il resto del
+            // gioco, e chi e' di turno non sta chiamando — sta ancora decidendo.
+            // L'unica cosa che si scrive qui e' la chiamata di chi ha chiamato
+            // davvero: detta una volta, il tempo di sentirla, e poi via, che poi
+            // resta scritta in oro sul suo nome.
             annunciando && <p className="nota-centro annuncio-chiamata compare">{annuncio}</p>
           )}
         </div>

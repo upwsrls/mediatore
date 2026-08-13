@@ -68,4 +68,19 @@ describe('postiDellaMano', () => {
   it('mette l ultima carta rimasta al centro della fila di sopra', () => {
     expect(postiDellaMano(prime(1))).toEqual([{ carta: mazzo[0], riga: 0, scarto: 0 }]);
   });
+
+  it('con l ingombro della mano intera le carte che arrivano riempiono i posti finali', () => {
+    // Mentre si distribuisce la mano cresce dentro l'ingombro che avra' alla
+    // fine: i posti sono quelli di sempre, e le prime carte occupano i primi.
+    const intera = postiDellaMano(prime(9));
+    for (let arrivate = 1; arrivate <= 9; arrivate += 1) {
+      expect(postiDellaMano(prime(arrivate), 9)).toEqual(intera.slice(0, arrivate));
+    }
+  });
+
+  it('con l ingombro piu piccolo della mano vale la mano', () => {
+    // Il chiamante col monte si ritrova con piu' carte di quelle di partenza:
+    // se l'ingombro fosse rimasto indietro, le ultime finirebbero fuori posto.
+    expect(postiDellaMano(prime(7), 3)).toEqual(postiDellaMano(prime(7)));
+  });
 });
