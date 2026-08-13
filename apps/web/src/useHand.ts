@@ -49,6 +49,7 @@ import { pescaNomi } from './nomi';
 import { ordineDiMano } from './ordine';
 import * as registro from './registro';
 import { cartaDelTrionfo } from './trionfo';
+import { uccide } from './uccisione';
 
 /**
  * La distribuzione e' una fase vera, non un timeout dentro un componente:
@@ -252,18 +253,6 @@ function nuovaSessione(
     ordine: [],
     scaduta: false,
   };
-}
-
-/**
- * Si sta tagliando: trionfo su una base aperta in un altro palo. Al tavolo e'
- * il momento piu' rumoroso della mano — si esclama e la carta si getta — e
- * infatti ha un suono suo, diverso da quello della carta appoggiata.
- */
-function uccide(state: HandState, cardId: string): boolean {
-  const aperta = state.currentTrick.plays[0]?.card;
-  if (aperta === undefined || aperta.suit === state.trump) return false;
-  const giocata = (state.hands[state.turn] ?? []).find((carta) => carta.id === cardId);
-  return giocata?.suit === state.trump;
 }
 
 /**
