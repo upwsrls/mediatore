@@ -58,9 +58,9 @@ export function PlayerName({
       )}
       {/*
        * Il pallino e nient'altro, dalla distribuzione alla fine: la parola
-       * CARTARO scritta per lungo sui posti di lato sforava il tavolo di una
-       * trentina di pixel, e adesso non serve piu' a niente. Chi ascolta lo
-       * schermo la sente comunque: il colore da solo non gli dice niente.
+       * CARTARO sui posti di lato sforava il tavolo di una trentina di pixel, e
+       * dove il pallino resta tutta la smazzata non serve piu' a niente. Chi
+       * ascolta lo schermo la sente comunque: il colore da solo non dice nulla.
        */}
       {cartaro && (
         <span className="pallino-cartaro">

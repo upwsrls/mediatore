@@ -180,8 +180,8 @@ legend {
  * quindi non prende ne' l'oro del chiamante ne' il bordo bianco del turno: e'
  * un punto rosso di sei pixel, e uno stesso giocatore puo' averlo insieme a
  * tutti e due senza che nessuna delle tre cose si confonda con le altre.
- * Non si stringe mai sotto la sua misura, cosi' resta rotondo anche dove il
- * nome sta per lungo. La parola per chi ascolta ce l'ha dentro.
+ * Non si stringe mai sotto la sua misura, cosi' resta rotondo anche nelle
+ * colonne strette dei lati. La parola per chi ascolta ce l'ha dentro.
  */
 .pallino-cartaro {
   flex: 0 0 auto;
@@ -801,7 +801,12 @@ button.carta:active {
 
 .tavolo-scena {
   position: relative;
-  --lato: clamp(38px, 12vw, 58px);
+  /* I posti di lato tengono il nome scritto dritto, e un nome dritto vuole
+     larghezza: tanta che "Ruggerino" ci stia in una riga sola, perche' un nome
+     spezzato a meta' parola si legge peggio di uno scritto per lungo. Quello che
+     si prende qui lo restituisce in altezza, che un nome su due righe ingombra
+     un quarto di uno scritto per lungo. */
+  --lato: clamp(50px, 15.5vw, 68px);
   /* Solo il pavimento del centro: quando c'e' spazio cresce oltre, quando lo
      schermo e' basso e' da qui che si recupera, mai dalle carte. */
   --centro: clamp(112px, 17vh, 180px);
@@ -872,35 +877,66 @@ button.carta:active {
   font-variant-numeric: tabular-nums;
 }
 
-/*
- * Sui lati il nome si scrive per lungo: costa qualche riga di CSS e regala
- * la larghezza che serve alle carte.
- */
+/* Sui lati il posto si impila: nome sopra, carte sotto. Di fianco non si
+   spreca: quei due pixel di bordo sono sillabe del nome. */
 .posto-sinistra-1,
 .posto-sinistra-2,
 .posto-destra-1,
 .posto-destra-2 {
   flex-direction: column;
   width: 100%;
-  padding: 4px 2px;
+  padding: 4px 0;
 }
 
-/* writing-mode non tocca gli inline: il nome deve essere un blocco suo. */
+/*
+ * Il nome sta dritto anche di lato, come su tutti gli altri posti. Per lungo
+ * costava meno larghezza, ma "Rocco u curt" scritto dal basso verso l'alto non
+ * lo legge nessuno: si paga con un testo piu' piccolo e col nome che va a capo.
+ * Il conto torna, perche' un nome su due righe ingombra in altezza meno di un
+ * quarto di quello che si prendeva scritto per lungo.
+ */
 .posto-sinistra-1 .posto-nome,
 .posto-sinistra-2 .posto-nome,
 .posto-destra-1 .posto-nome,
 .posto-destra-2 .posto-nome {
   display: block;
-  writing-mode: vertical-rl;
+  text-align: center;
+  font-size: 10px;
   line-height: 1.1;
-  white-space: nowrap;
-  font-size: 12px;
+  max-width: 100%;
+  /* Un soprannome tutto attaccato va a capo dove capita: meglio spezzato che
+     tagliato via dal bordo del tavolo. */
+  overflow-wrap: anywhere;
 }
 
-/* A sinistra si legge dal basso verso l alto, come sul dorso di un libro. */
-.posto-sinistra-1 .posto-nome,
-.posto-sinistra-2 .posto-nome {
-  transform: rotate(180deg);
+/* Nome, ruolo e pallino vanno a capo dentro la colonna: la pillola dell'oro,
+   che il ruolo lo tiene scritto, e' piu' larga del posto e altrimenti finirebbe
+   fuori dal tavolo. */
+.lato .posto-nome .giocatore {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
+  padding: 0 1px;
+  /* Due righe di nome piu' la riga del ruolo, bordo della pillola compreso:
+     oltre, il nome comincia a mangiarsi l'altezza delle carte, e a quel punto
+     e' meglio l'ultima sillaba che manca. */
+  max-height: 40px;
+  overflow: hidden;
+  /* Tonda come una pastiglia va bene per una riga sola: su due o tre la curva
+     entra dentro le parole e le mangia agli angoli. */
+  border-radius: 8px;
+}
+
+/* Di lato il grassetto del chiamante costerebbe una sillaba: "Ruggerino" in
+   tondo ci sta in una riga, in grassetto no. L'oro sotto al nome basta. */
+.lato .posto-nome .giocatore-chiamante {
+  font-weight: inherit;
+}
+
+.lato .giocatore-ruolo {
+  font-size: 8px;
+  letter-spacing: 0.02em;
 }
 
 /* ---- dorsi: quante carte restano in mano agli altri ---- */
@@ -1020,60 +1056,26 @@ button.carta:active {
 }
 
 /*
- * A carte scoperte il tavolo si stringe da solo: i lati si allargano per far
- * posto ai ventagli e il pavimento del centro si accorcia. Le carte in mano
- * non si toccano, come sempre.
+ * A carte scoperte il tavolo si stringe da solo: il pavimento del centro si
+ * accorcia per far posto ai ventagli sui lati. Le carte in mano non si
+ * toccano, come sempre.
  */
 .tavolo-spiato {
-  --lato: clamp(46px, 14vw, 66px);
   --centro: clamp(84px, 12vh, 140px);
 }
 
 /*
- * Il nome per lungo costa quasi cento pixel di altezza a testa: a carte
- * scoperte quell altezza serve tutta ai ventagli, e allora il nome torna
- * dritto e piccolo. A cinque, con due posti per lato, e' l unico modo di
- * stare nello schermo senza scorrere.
+ * A carte scoperte l'altezza dei lati serve tutta ai ventagli: il nome si
+ * stringe a due righe invece di tre, e un soprannome lungo si tronca — che
+ * li' l'altezza vale piu' dell'ultima sillaba.
  */
-.tavolo-spiato .posto-sinistra-1 .posto-nome,
-.tavolo-spiato .posto-sinistra-2 .posto-nome,
-.tavolo-spiato .posto-destra-1 .posto-nome,
-.tavolo-spiato .posto-destra-2 .posto-nome {
-  writing-mode: horizontal-tb;
-  transform: none;
-  white-space: normal;
-  text-align: center;
-  font-size: 10px;
-  line-height: 1.05;
-  max-width: 100%;
-  /* Un soprannome tutto attaccato va a capo dove capita: meglio spezzato che
-     tagliato via dal bordo del tavolo. */
-  overflow-wrap: anywhere;
-}
-
-/* Nome e ruolo vanno a capo dentro la colonna: la pillola dell'amico, che il
-   ruolo lo tiene scritto, e' piu' larga del posto e altrimenti finirebbe fuori
-   dal tavolo. */
 .tavolo-spiato .lato .posto-nome .giocatore {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  max-width: 100%;
-  padding: 0 4px;
-  /* Due righe e non di piu': il nome e il ruolo. Un soprannome lungo si
-     tronca, che qui l altezza vale piu' dell ultima sillaba. */
-  max-height: 2.3em;
-  overflow: hidden;
+  max-height: 26px;
 }
 
 .tavolo-spiato .lato .posto-punti {
   font-size: 11px;
   line-height: 1;
-}
-
-.tavolo-spiato .lato .giocatore-ruolo {
-  font-size: 8px;
-  letter-spacing: 0.02em;
 }
 
 /* A cinque i lati portano due ventagli a testa: ogni pixel di contorno
@@ -1087,7 +1089,7 @@ button.carta:active {
 }
 
 .tavolo-spiato .lato .posto-tavolo {
-  padding: 1px 2px;
+  padding: 1px 0;
   gap: 2px;
 }
 
@@ -1380,13 +1382,6 @@ button.carta:active {
 
   .dorsi-in-colonna .dorso {
     margin-top: -19px;
-  }
-
-  .posto-sinistra-1 .posto-nome,
-  .posto-sinistra-2 .posto-nome,
-  .posto-destra-1 .posto-nome,
-  .posto-destra-2 .posto-nome {
-    font-size: 11px;
   }
 
   .tavolo .zona-mano {

@@ -104,7 +104,7 @@ describe('disposizione', () => {
 });
 
 describe('eDiLato', () => {
-  it('riconosce i posti con il nome per lungo', () => {
+  it('riconosce i posti dove le carte scendono invece di allargarsi', () => {
     expect(eDiLato('sinistra-1')).toBe(true);
     expect(eDiLato('destra-2')).toBe(true);
     expect(eDiLato('alto')).toBe(false);

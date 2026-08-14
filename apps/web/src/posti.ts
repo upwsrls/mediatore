@@ -44,7 +44,7 @@ export function disposizione(players: number, inBasso: number): Posizione[] {
   return posizioni;
 }
 
-/** I lati hanno il nome scritto per lungo: in verticale ci stanno in poco. */
+/** Sui lati lo spazio e' in altezza: i mazzetti scendono invece di allargarsi. */
 export function eDiLato(posizione: Posizione): boolean {
   return posizione.startsWith('sinistra') || posizione.startsWith('destra');
 }
