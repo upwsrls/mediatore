@@ -1,4 +1,4 @@
-import type { Card as CartaEngine, HandState } from '@mediatore/engine';
+import type { Card as CartaEngine, HandState, TipoChiamata } from '@mediatore/engine';
 import type { CSSProperties, ReactElement } from 'react';
 import { Card } from './Card';
 import { PlayerName } from './PlayerName';
@@ -6,6 +6,24 @@ import { DORSO } from '../carte/immagini';
 import type { Posizione } from '../posti';
 import { eDiLato } from '../posti';
 import { ventaglioDelPosto } from '../spia';
+
+/**
+ * Cosa resta in cima al tavolo, a seconda di chi si e' preso il monte.
+ * Nella normale quelle carte se le e' prese il chiamante, e il riquadro
+ * sparisce. Nella sola il monte va a lui — lo guarda dal bottone — ma la
+ * carta che attesta il trionfo resta visibile a tutti. Colonna, chi se la
+ * sente e liscio: il monte non si muove, coperte e scoperta dov'erano.
+ */
+export function monteInCima(
+  chiamata: TipoChiamata | null,
+  scoperta: CartaEngine | null,
+  monte: readonly CartaEngine[],
+): { scoperta: CartaEngine | null; coperte: CartaEngine[] } | null {
+  if (monte.length === 0 || chiamata === 'normale') return null;
+  const coperte = monte.filter((carta) => carta.id !== scoperta?.id);
+  if (chiamata === 'sola') return { scoperta, coperte: [] };
+  return { scoperta, coperte };
+}
 
 /**
  * I pezzi del tavolo che si vedono uguali prima e durante il gioco: i posti

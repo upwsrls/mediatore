@@ -7,7 +7,7 @@ import { IntestazioneTavolo } from '../components/IntestazioneTavolo';
 import { PlayerName } from '../components/PlayerName';
 import { StatusLine } from '../components/StatusLine';
 import { MonteScopertoInTavola, chiSiPrendeIlMonte } from '../components/MonteScopertoInTavola';
-import { MonteInTavola, PostoTavolo } from '../components/Tavolo';
+import { MonteInTavola, PostoTavolo, monteInCima } from '../components/Tavolo';
 import { chiamataDi } from '../chiamate';
 import { motivoNonGiocabile, nomeGiocatore, obbligoCorrente, puntiCorrenti } from '../labels';
 import { cartePerFila, eFilaUnica, postiDellaMano } from '../mano';
@@ -97,12 +97,9 @@ export function TableScreen({
     vedeIlMonte !== null && (session.umano === null || vedeIlMonte === session.umano);
   const puoVedereMonte = monteMio && state.turn === vedeIlMonte && baseChiusa;
 
-  // La carta che ha girato il trionfo resta scoperta per tutti fino alla fine,
-  // qualunque cosa sia stata dichiarata. L'unica eccezione e' la chiamata
-  // normale: li' il monte se lo prende in mano il chiamante, e quello che
-  // rimette da parte e' tutto coperto, carta del trionfo compresa.
-  const scopertaInTavola = chiamata === 'normale' ? null : session.scoperta;
-  const coperteInTavola = state.monte.filter((carta) => carta.id !== scopertaInTavola?.id);
+  // In cima resta solo quello che non si e' preso nessuno: la normale se lo
+  // e' portato via, la sola lascia la carta del trionfo, le altre non toccano.
+  const inCima = monteInCima(chiamata, session.scoperta, state.monte);
 
   // La carta chiamata sta in tavola dall'annuncio alla fine, scoperta per
   // tutti: e' la sola cosa che il chiamante dice ad alta voce. Chi ce l'ha in
@@ -157,10 +154,11 @@ export function TableScreen({
     );
   };
 
-  // Due avvisi brevi su una riga sola: il tavolo ha bisogno dell'altezza.
+  // Due avvisi brevi su una riga sola: il tavolo ha bisogno dell'altezza,
+  // e due frasi intere la spezzavano. Qui restano minute, accanto al bottone.
   const noteMonte = [
-    chiamata === 'sola' ? 'nella sola non si scambia' : null,
-    puoVedereMonte ? null : 'visibile al chiamante a base chiusa',
+    chiamata === 'sola' ? 'niente scambio' : null,
+    puoVedereMonte ? null : 'a base chiusa',
   ].filter((nota): nota is string => nota !== null);
 
   return (
@@ -185,13 +183,12 @@ export function TableScreen({
         </div>
 
         <div className="fila-alto">
-          {/* Appena qualcuno chiama, quelle carte se le e' prese lui: il
-              riquadro in cima farebbe credere che ci sia ancora un monte
-              da prendere. Nel liscio non se l'e' preso nessuno, e resta. */}
-          {!scopreIlMonte && caller === null && state.monte.length > 0 && (
+          {/* Il riquadro sta qui per tutta la smazzata, tranne nella normale:
+              li' il chiamante se l'e' preso in mano e in cima non resta niente. */}
+          {!scopreIlMonte && inCima !== null && (
             <MonteInTavola
-              scoperta={scopertaInTavola}
-              coperte={coperteInTavola}
+              scoperta={inCima.scoperta}
+              coperte={inCima.coperte}
               spiate={spia}
             />
           )}

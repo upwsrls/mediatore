@@ -345,15 +345,21 @@ legend {
   }
 }
 
-/* Gli avvisi sul monte accompagnano il bottone: minuti, su una riga sola. */
+/* Gli avvisi sul monte accompagnano il bottone: minuti, su una riga sola.
+   Se vanno a capo la riga ruba ai lati i pixel che servono ai ventagli. */
 .nota-monte {
   font-size: 11px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /*
  * Due sguardi sulla stessa riga: il monte resta a sinistra, dove e' sempre
  * stato, le basi stanno a destra. La colonna di sinistra c'e' anche vuota,
  * cosi' chi non ha un monte da vedere trova Basi nello stesso posto.
+ * Non si avvolge: altezza del bottone e basta, anche con tutte e due le note.
  */
 .riga-sguardi {
   display: grid;
@@ -364,7 +370,7 @@ legend {
 
 .sguardo-monte {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
   min-width: 0;

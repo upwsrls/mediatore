@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Card } from '../components/Card';
 import { IntestazioneTavolo } from '../components/IntestazioneTavolo';
 import { MonteScopertoInTavola } from '../components/MonteScopertoInTavola';
-import { MonteInTavola, PostoTavolo } from '../components/Tavolo';
+import { MonteInTavola, PostoTavolo, monteInCima } from '../components/Tavolo';
 import { DORSO } from '../carte/immagini';
 import { NOMI_CHIAMATA, SPECIALI, costo } from '../chiamate';
 import { CARTA_DISTRIBUITA_MS, chiRiceve, quanteNeHa } from '../distribuzione';
@@ -116,6 +116,16 @@ export function DealingScreen({
   // si aspetta, come si aspetta il turno di chiunque altro. Delle sue carte
   // non trapela niente, perche' qui sotto c'e' sempre e solo la propria mano.
   const chiamante = session.call.caller;
+  // Stessa regola del tavolo di gioco: in cima resta il monte finche' non
+  // se lo prende qualcuno. Durante la chiamata non se l'e' preso nessuno.
+  const inCima =
+    !distribuendo && !scopreIlMonte && conMonte
+      ? monteInCima(
+          chiamante === null ? null : (session.call.chiamata ?? 'normale'),
+          scoperta,
+          session.monte,
+        )
+      : null;
   const annuncio = annuncioDellaChiamata(session.call);
   const [annunciando, setAnnunciando] = useState(false);
   useEffect(() => {
@@ -182,22 +192,24 @@ export function DealingScreen({
         </div>
 
         <div className="fila-alto">
-          {/* Il monte compare a carte finite, e sparisce appena qualcuno
-              chiama: da li' quelle carte se le e' prese lui. Nel liscio
-              non chiama nessuno, e il riquadro resta. */}
-          {!distribuendo && !scopreIlMonte && chiamante === null && (
+          {inCima !== null && (
             <div className="compare">
-              {conMonte ? (
-                <MonteInTavola
-                  scoperta={scoperta}
-                  coperte={session.monte.filter((carta) => carta.id !== scoperta?.id)}
-                  spiate={spia}
-                />
-              ) : (
-                scoperta !== null && <TrionfoDelCartaro carta={scoperta} cartaro={session.dealer} />
-              )}
+              <MonteInTavola
+                scoperta={inCima.scoperta}
+                coperte={inCima.coperte}
+                spiate={spia}
+              />
             </div>
           )}
+          {!distribuendo &&
+            !scopreIlMonte &&
+            !conMonte &&
+            chiamante === null &&
+            scoperta !== null && (
+              <div className="compare">
+                <TrionfoDelCartaro carta={scoperta} cartaro={session.dealer} />
+              </div>
+            )}
           {sedia('alto')}
         </div>
 
