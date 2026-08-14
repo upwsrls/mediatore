@@ -11,10 +11,16 @@ import {
 } from './memoria.ts';
 import type { Parametri } from './parametri.ts';
 import { PARAMETRI_DI_SERIE } from './parametri.ts';
-import { cartaVincente, possoVincere, postaDellaPresa, rischioDiPerdere } from './valuta.ts';
+import {
+  cartaVincente,
+  giocatoriDopoDiMe,
+  possoVincere,
+  postaDellaPresa,
+  rischioDiPerdere,
+} from './valuta.ts';
 import type { VistaDelBot } from './vista.ts';
 import { alleatoDi, preseRimaste, puntiDeiMiei, sonoIlChiamante } from './vista.ts';
-import { currentWinner } from '@mediatore/engine';
+import { beats, currentWinner } from '@mediatore/engine';
 
 /**
  * Una presa senza nemmeno una carta a punti: in tavola c'e' solo il punto
@@ -518,6 +524,18 @@ function chiamanteEPrivoDi(vista: VistaDelBot, palo: Suit): boolean {
 }
 
 /**
+ * Dietro questa carta, in mano, ne resta un'altra che comanda ancora il palo:
+ * e' la piu' alta di quel seme che puo' ancora comparire, lo stesso conto
+ * delle firme. Si puo' caricare la prima senza buttar via una presa futura.
+ */
+function restaUnComandante(vista: VistaDelBot, carta: Card): boolean {
+  return vista.mano.some(
+    (altra) =>
+      altra.id !== carta.id && altra.suit === carta.suit && ePadrona(vista, altra),
+  );
+}
+
+/**
  * Se convenga scaricare punti sulla presa gia' vinta dal compagno. Sembra
  * ovvio e non lo e': l'asso che se ne va fa firma il re di quel palo, e quel
  * re puo' benissimo averlo il chiamante. Gli si e' regalata una base.
@@ -527,11 +545,19 @@ function chiamanteEPrivoDi(vista: VistaDelBot, palo: Suit): boolean {
  * piu' nessuno. Chi ha ragione non si puo' sapere, si va a sentimento e
  * guardando quello che e' gia' uscito. Nel dubbio si scarta liscio e si
  * tiene: il giocatore vero carica poco piu' della meta' delle volte.
+ *
+ * Il caso nuovo e' lo stesso ramo, solo a palo vuoto: si puo' scegliere
+ * qualunque carta, e allora si carica anche quella che comanda il suo seme,
+ * purche' dietro ne resti un'altra che comanda ancora. Maniglia e asso:
+ * esce la maniglia, l'asso resta firmo. La carta alta sola no: quella e'
+ * una presa futura.
  */
 function convieneCaricare(vista: VistaDelBot, carta: Card): boolean {
+  if (carta.suit === vista.trump) return false;
+  // Dietro resta chi comanda: la presa futura e' salva, i punti vanno sopra.
+  if (restaUnComandante(vista, carta)) return true;
   // Una firma non si regala: quella e' una presa, e la fa da se'.
   if (eFirma(vista, carta)) return false;
-  if (carta.suit === vista.trump) return false;
 
   const palo = carta.suit;
   const sopra = carteNonAncoraViste(vista).filter(
@@ -561,7 +587,56 @@ function convieneCaricare(vista: VistaDelBot, carta: Card): boolean {
 }
 
 /**
- * La presa la sta vincendo un compagno.
+ * La presa se la prende per forza un compagno che deve ancora giocare.
+ *
+ * Vale quando del palo aperto ogni carta rimasta batte quella in tavola —
+ * il 2 di trionfo, e in giro solo il re — e quelle carte non possono stare
+ * che nelle mani dei compagni rimasti: chi ha gia' giocato non ha piu'
+ * posto, e gli avversari di quel palo sono privi. Chi le ha deve rispondere
+ * a seme, e qualunque carta giochi vince. Allora e' la stessa presa del
+ * compagno, anche se lui non ha ancora messo.
+ *
+ * Non si conta il taglio. Chi ha ancora il palo aperto non puo' uccidere, e
+ * chi e' privo non e' obbligato a farlo: darlo per fatto sarebbe regalare
+ * i punti all'avversario.
+ */
+function unCompagnoSeLaPrendePerForza(vista: VistaDelBot): boolean {
+  const sua = cartaVincente(vista);
+  const vincitore = currentWinner(vista.presaInCorso);
+  if (sua === null || vincitore === null) return false;
+  if (alleatoDi(vista, vincitore)) return false;
+
+  const seme = semeDiMano(vista);
+  if (seme === null) return false;
+
+  const ignote = carteNonAncoraViste(vista);
+  const delSeme = ignote.filter((altra) => altra.suit === seme);
+  if (delSeme.length === 0) return false;
+  if (delSeme.some((altra) => !beats(altra, sua, vista.trump, seme))) return false;
+
+  const dopo = giocatoriDopoDiMe(vista);
+  const compagni = dopo.filter((seat) => alleatoDi(vista, seat));
+  if (compagni.length === 0) return false;
+
+  for (const seat of dopo) {
+    if (alleatoDi(vista, seat)) continue;
+    if (!eSemeFinito(vista, seat, seme)) return false;
+  }
+
+  let nascondigli = vista.monteVisibile.length > 0 ? 0 : vista.monteCoperto;
+  for (let seat = 0; seat < vista.config.players; seat += 1) {
+    if (seat === vista.io) continue;
+    if (dopo.includes(seat)) continue;
+    if (eSemeFinito(vista, seat, seme)) continue;
+    nascondigli += vista.carteInMano[seat] ?? 0;
+  }
+
+  return delSeme.length > nascondigli;
+}
+
+/**
+ * La presa la sta vincendo un compagno — o se la prende per forza, anche se
+ * deve ancora giocare.
  *
  * Prima di tutto non gliela si porta via. Quella presa e' gia' della propria
  * parte: prendergliela col trionfo non ne guadagna una, brucia una carta che
@@ -578,7 +653,10 @@ function convieneCaricare(vista: VistaDelBot, carta: Card): boolean {
  */
 function presaDelCompagno(vista: VistaDelBot, legali: readonly Card[], rng: Rng): Card {
   const sua = cartaVincente(vista);
-  const gliaLasciano = sua === null || rischioDiPerdere(vista, sua) <= RISCHIO_TRASCURABILE;
+  const gliaLasciano =
+    unCompagnoSeLaPrendePerForza(vista) ||
+    sua === null ||
+    rischioDiPerdere(vista, sua) <= RISCHIO_TRASCURABILE;
   const senzaRubargliela = legali.filter((carta) => !possoVincere(vista, carta));
   const scelte = senzaRubargliela.length > 0 ? senzaRubargliela : legali;
 
@@ -766,7 +844,10 @@ function decidi(
   if (vista.presaInCorso.plays.length === 0) return apre(vista, legali, rng);
 
   const vincitore = currentWinner(vista.presaInCorso);
-  if (vincitore !== null && alleatoDi(vista, vincitore)) {
+  if (
+    vincitore !== null &&
+    (alleatoDi(vista, vincitore) || unCompagnoSeLaPrendePerForza(vista))
+  ) {
     return presaDelCompagno(vista, legali, rng);
   }
   return presaDaStrappare(vista, legali, rng, parametri);

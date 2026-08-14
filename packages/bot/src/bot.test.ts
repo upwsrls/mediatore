@@ -1185,6 +1185,150 @@ describe('caricare sul compagno', () => {
 });
 
 /**
+ * Privo del palo aperto, sulla presa sicura del compagno: si carica una
+ * carta alta solo se dietro ne resta un'altra che comanda ancora quel palo.
+ * E' lo stesso ramo di sopra, allargato: prima si poteva scegliere solo fra
+ * le carte del seme, adesso la mano intera.
+ */
+describe('privo del palo, carica sul compagno', () => {
+  /**
+   * Quattro, chiamante al 2. Il posto 1 apre con la maniglia di coppe, il
+   * chiamante ci va liscio, il 3 mette una coppa: il bot al 0 e' privo di
+   * coppe e gioca per ultimo, la presa del compagno e' fatta.
+   */
+  function presaSicuraDelCompagno(manoDelBot: Card[]): HandState {
+    const state = tavolo({
+      players: 4,
+      alliance: { kind: 'monte', caller: 2, chiamata: 'normale' },
+      mani: [
+        manoDelBot,
+        [carta('coppe', 7), carta('coppe', 3), carta('spade', 2), carta('denari', 4)],
+        [carta('coppe', 6), carta('coppe', 2), carta(TRIONFO, 'asso'), carta('denari', 3)],
+        [carta('coppe', 4), carta('coppe', 5), carta('spade', 3), carta('denari', 5)],
+      ],
+      leader: 1,
+    });
+    return giocate(state, [carta('coppe', 7), carta('coppe', 6), carta('coppe', 4)]);
+  }
+
+  it('carica la maniglia quando dietro resta l asso dello stesso palo', () => {
+    const state = presaSicuraDelCompagno([
+      carta(TRIONFO, 5),
+      carta('spade', 7),
+      carta('spade', 'asso'),
+      carta('denari', 2),
+    ]);
+    expect(state.turn).toBe(0);
+    expect(scelta(state).id).toBe('spade-7');
+  });
+
+  it('scarta liscio quando la carta alta e sola nel suo palo', () => {
+    const state = presaSicuraDelCompagno([
+      carta(TRIONFO, 5),
+      carta('spade', 7),
+      carta('denari', 2),
+      carta('denari', 3),
+    ]);
+    expect(state.turn).toBe(0);
+    expect(scelta(state).id).toBe('denari-2');
+  });
+
+  it('scarta liscio quando la presa del compagno e ancora in bilico', () => {
+    // Stessa maniglia e asso, ma il bot gioca secondo: dietro restano il
+    // chiamante e un altro, la presa non e' ancora di nessuno.
+    const state = giocate(
+      tavolo({
+        players: 4,
+        alliance: { kind: 'monte', caller: 3, chiamata: 'normale' },
+        mani: [
+          [carta('coppe', 7), carta('coppe', 3), carta('spade', 2), carta('denari', 4)],
+          [carta(TRIONFO, 5), carta('spade', 7), carta('spade', 'asso'), carta('denari', 2)],
+          [carta('coppe', 6), carta('coppe', 2), carta('spade', 5), carta('denari', 3)],
+          [carta('coppe', 4), carta('coppe', 5), carta(TRIONFO, 'asso'), carta('denari', 5)],
+        ],
+        leader: 0,
+      }),
+      [carta('coppe', 7)],
+    );
+
+    expect(state.turn).toBe(1);
+    const scelto = scelta(state);
+    expect(scelto.suit).not.toBe(TRIONFO);
+    expect(cardPoints(scelto.rank)).toBe(0);
+  });
+
+  it("sulla presa dell avversario non carica: butta la scartina", () => {
+    // La maniglia di coppe la gioca il chiamante: quella presa e' persa, e
+    // la maniglia di spade resta in mano.
+    const state = giocate(
+      tavolo({
+        players: 4,
+        alliance: { kind: 'monte', caller: 1, chiamata: 'normale' },
+        mani: [
+          [carta('spade', 7), carta('spade', 'asso'), carta('denari', 2), carta('denari', 3)],
+          [carta('coppe', 7), carta('coppe', 3), carta('spade', 2), carta('denari', 4)],
+          [carta('coppe', 6), carta('coppe', 2), carta(TRIONFO, 'asso'), carta('denari', 5)],
+          [carta('coppe', 4), carta('coppe', 5), carta('spade', 3), carta('denari', 6)],
+        ],
+        leader: 1,
+      }),
+      [carta('coppe', 7), carta('coppe', 6), carta('coppe', 4)],
+    );
+
+    expect(state.turn).toBe(0);
+    expect(scelta(state).id).toBe('denari-2');
+  });
+
+  it('nel caso reale i tre avversari caricano invece di scartare', () => {
+    // A cinque, sola, trionfo coppe. Il 7 e l'asso sono gia' usciti: resta
+    // solo il re, e sta a un avversario. Il chiamante apre col 2, gli restano
+    // zero carte, e i tre in mezzo — tutti privi di coppe — vedono che la
+    // presa e' del compagno per forza.
+    const state = giocate(
+      tavolo({
+        players: 5,
+        trump: 'coppe',
+        alliance: { kind: 'monte', caller: 0, chiamata: 'sola' },
+        mani: [
+          [carta('coppe', 7), carta('coppe', 'asso'), carta('coppe', 2)],
+          [carta('coppe', 6), carta('coppe', 'fante'), carta('spade', 'asso'), carta('spade', 2)],
+          [carta('coppe', 'cavallo'), carta('coppe', 5), carta('bastoni', 'asso'), carta('spade', 're')],
+          [carta('denari', 5), carta('denari', 6), carta('bastoni', 're'), carta('bastoni', 'fante')],
+          [carta('coppe', 3), carta('coppe', 4), carta('coppe', 're'), carta('denari', 2)],
+        ],
+        monte: [],
+        leader: 0,
+      }),
+      [
+        carta('coppe', 7),
+        carta('coppe', 6),
+        carta('coppe', 'cavallo'),
+        carta('denari', 5),
+        carta('coppe', 3),
+        carta('coppe', 'asso'),
+        carta('coppe', 'fante'),
+        carta('coppe', 5),
+        carta('denari', 6),
+        carta('coppe', 4),
+      ],
+    );
+
+    expect(state.turn).toBe(0);
+    const dopoIlDue = giocate(state, [carta('coppe', 2)]);
+    expect(dopoIlDue.turn).toBe(1);
+    expect(scelta(dopoIlDue).id).toBe('spade-asso');
+
+    const dopoIlPrimo = giocate(dopoIlDue, [carta('spade', 'asso')]);
+    expect(dopoIlPrimo.turn).toBe(2);
+    expect(scelta(dopoIlPrimo).id).toBe('bastoni-asso');
+
+    const dopoIlSecondo = giocate(dopoIlPrimo, [carta('bastoni', 'asso')]);
+    expect(dopoIlSecondo.turn).toBe(3);
+    expect(scelta(dopoIlSecondo).id).toBe('bastoni-re');
+  });
+});
+
+/**
  * Il compagno non si uccide.
  *
  * Il caso vero, a quattro con trionfo bastoni: un difensore apre con la
