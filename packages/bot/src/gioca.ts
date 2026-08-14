@@ -88,8 +88,11 @@ function costoDiPerderla(vista: VistaDelBot, carta: Card): number {
 }
 
 function scartaLaPiuInutile(vista: VistaDelBot, carte: readonly Card[], rng: Rng): Card {
+  const intoccabili = intoccabiliDellaMano(vista);
+  const libere = carte.filter((carta) => !intoccabili.has(carta.id));
+  const pool = libere.length > 0 ? libere : carte;
   return scegliFra(
-    migliori(carte, (carta) => -costoDiPerderla(vista, carta)),
+    migliori(pool, (carta) => -costoDiPerderla(vista, carta)),
     rng,
   );
 }
@@ -168,26 +171,89 @@ function daSacrificare(mie: readonly Card[], ignote: readonly Card[]): Card | nu
 }
 
 /**
+ * Le scartine sotto una carta alta, in un palo qualunque: i due sotto il re
+ * terzo, quello sotto l'asso secondo. Ogni carta ancora in giro sopra la
+ * mia e' una tirata a cui bisogna poter rispondere con una scartina; se le
+ * scartine bastano, la carta alta arriva in fondo viva e diventa firma.
+ *
+ * Se non bastano non c'e' niente da proteggere: un re secondo cade lo
+ * stesso, e allora quelle carte tornano spendibili.
+ */
+function daProteggereNelPalo(
+  mano: readonly Card[],
+  palo: Suit,
+  tirate: number,
+): { alta: Card; scorta: Card[] } | null {
+  const delPalo = mano.filter((carta) => carta.suit === palo);
+  const alte = delPalo.filter((carta) => cardStrength(carta.rank) >= cardStrength('re'));
+  if (alte.length === 0 || tirate === 0) return null;
+
+  const alta = alte.reduce((massima, carta) =>
+    cardStrength(carta.rank) > cardStrength(massima.rank) ? carta : massima,
+  );
+  const bassi = delPalo
+    .filter((carta) => cardStrength(carta.rank) < cardStrength(alta.rank))
+    .sort((a, b) => cardStrength(a.rank) - cardStrength(b.rank));
+  if (bassi.length < tirate) return null;
+  return { alta, scorta: bassi.slice(0, tirate) };
+}
+
+function tirateSopraInGiro(vista: VistaDelBot, palo: Suit, alta: Card): number {
+  return carteNonAncoraViste(vista).filter(
+    (altra) => altra.suit === palo && cardStrength(altra.rank) > cardStrength(alta.rank),
+  ).length;
+}
+
+/**
+ * In ogni palo, la carta alta protetta e le scartine che la tengono in
+ * vita. Vale nel trionfo come nei laterali: il re terzo di bastoni e' la
+ * stessa struttura del re terzo di trionfo.
+ */
+function protezioniDellaMano(vista: VistaDelBot): { alta: Card; scorta: Card[] }[] {
+  const pali = [...new Set(vista.mano.map((carta) => carta.suit))];
+  const trovate: { alta: Card; scorta: Card[] }[] = [];
+  for (const palo of pali) {
+    const delPalo = vista.mano.filter((carta) => carta.suit === palo);
+    const alta = delPalo
+      .filter((carta) => cardStrength(carta.rank) >= cardStrength('re'))
+      .reduce<Card | null>(
+        (massima, carta) =>
+          massima === null || cardStrength(carta.rank) > cardStrength(massima.rank)
+            ? carta
+            : massima,
+        null,
+      );
+    if (alta === null) continue;
+    const trovata = daProteggereNelPalo(vista.mano, palo, tirateSopraInGiro(vista, palo, alta));
+    if (trovata !== null) trovate.push(trovata);
+  }
+  return trovate;
+}
+
+/** Quelle carte non si toccano: o sono la presa futura, o la tengono in piedi. */
+function intoccabiliDellaMano(vista: VistaDelBot): Set<string> {
+  const ids = new Set<string>();
+  for (const { alta, scorta } of protezioniDellaMano(vista)) {
+    ids.add(alta.id);
+    for (const carta of scorta) ids.add(carta.id);
+  }
+  return ids;
+}
+
+/**
  * I trionfi bassi che stanno sotto una carta alta e la tengono in vita: i due
  * sotto il re terzo, quello sotto l'asso secondo.
  *
  * Il conto e' quello del tavolo: sopra il re ci sono maniglia e asso, sopra
- * l'asso c'e' la sola maniglia, e ogni carta che sta sopra e' una tirata a
- * cui bisogna poter rispondere con una scartina. Il chiamante prima o poi si
- * arrassa; sotto le sue tirate si buttano i trionfi bassi, e la carta alta
- * arriva in fondo viva e diventa firma. Bruciare una di quelle scartine per
- * uccidere vuol dire ritrovarsi a mettere la carta alta sotto la sua, e la
- * base e' persa.
- *
- * Se le scartine non bastano a coprire tutte le tirate non c'e' niente da
- * proteggere: un re secondo cade lo stesso, e allora quel trionfo torna a
- * essere una carta come le altre.
+ * l'asso c'e' la sola maniglia. Il chiamante prima o poi si arrassa; sotto
+ * le sue tirate si buttano i trionfi bassi, e la carta alta arriva in fondo
+ * viva. Bruciare una di quelle scartine per uccidere vuol dire ritrovarsi a
+ * mettere la carta alta sotto la sua, e la base e' persa.
  */
 export function trionfiDaProteggere(mano: readonly Card[], trump: Suit): Card[] {
   const trionfi = mano.filter((carta) => carta.suit === trump);
   const alte = trionfi.filter((carta) => cardStrength(carta.rank) >= cardStrength('re'));
   if (alte.length === 0) return [];
-
   const migliore = alte.reduce((massima, carta) =>
     cardStrength(carta.rank) > cardStrength(massima.rank) ? carta : massima,
   );
@@ -195,12 +261,7 @@ export function trionfiDaProteggere(mano: readonly Card[], trump: Suit): Card[] 
   const tirate = RANKS.filter(
     (rank) => cardStrength(rank) > cardStrength(migliore.rank) && !miei.has(rank),
   ).length;
-  if (tirate === 0) return [];
-
-  const bassi = trionfi
-    .filter((carta) => cardStrength(carta.rank) < cardStrength(migliore.rank))
-    .sort((a, b) => cardStrength(a.rank) - cardStrength(b.rank));
-  return bassi.length < tirate ? [] : bassi.slice(0, tirate);
+  return daProteggereNelPalo(mano, trump, tirate)?.scorta ?? [];
 }
 
 /**
@@ -575,14 +636,21 @@ function restaUnComandante(vista: VistaDelBot, carta: Card): boolean {
  * guardando quello che e' gia' uscito. Nel dubbio si scarta liscio e si
  * tiene: il giocatore vero carica poco piu' della meta' delle volte.
  *
- * Il caso nuovo e' lo stesso ramo, solo a palo vuoto: si puo' scegliere
- * qualunque carta, e allora si carica anche quella che comanda il suo seme,
- * purche' dietro ne resti un'altra che comanda ancora. Maniglia e asso:
- * esce la maniglia, l'asso resta firmo. La carta alta sola no: quella e'
- * una presa futura.
+ * Si carica solo una carta che non serve piu' come presa futura. Il re
+ * terzo, nel laterale come nel trionfo, sopravvive alle tirate grazie alle
+ * scartine: buttarlo e' regalare quella base. Resta il caso maniglia e
+ * asso: esce la maniglia, l'asso resta firmo, e nessuna delle due e' una
+ * protezione. La carta alta sola no: quella e' una presa futura.
  */
+function cartaAltaSolaNelPalo(vista: VistaDelBot, carta: Card): boolean {
+  if (cardStrength(carta.rank) < cardStrength('re')) return false;
+  return !vista.mano.some((altra) => altra.id !== carta.id && altra.suit === carta.suit);
+}
+
 function convieneCaricare(vista: VistaDelBot, carta: Card): boolean {
   if (carta.suit === vista.trump) return false;
+  // Ne' la carta alta protetta ne' le scartine che la tengono in piedi.
+  if (intoccabiliDellaMano(vista).has(carta.id)) return false;
   // Dietro resta chi comanda: la presa futura e' salva, i punti vanno sopra.
   if (restaUnComandante(vista, carta)) return true;
   // Una firma non si regala: quella e' una presa, e la fa da se'.
@@ -595,8 +663,9 @@ function convieneCaricare(vista: VistaDelBot, carta: Card): boolean {
 
   // Sopra la mia gira ancora chi comanda quel palo: spendendola non promuovo
   // niente a nessuno, e tenendola una base non la farei lo stesso. I punti
-  // vanno sulla presa, che quella e' gia' vinta.
-  if (sopra > 0) return true;
+  // vanno sulla presa, che quella e' gia' vinta. La carta alta sola no:
+  // quella resta una presa futura, anche se sopra le girano le sue.
+  if (sopra > 0 && !cartaAltaSolaNelPalo(vista, carta)) return true;
 
   // La mia comanda il palo, e il chiamante di quel palo e' gia' rimasto
   // senza: il re non puo' averlo, e alla prima occasione me la uccide. Meglio
@@ -811,7 +880,10 @@ function coltelliPerUccidere(vista: VistaDelBot, legali: readonly Card[]): Card[
   );
   if (trionfi.length === 0) return [];
 
-  const scorta = preseRimaste(vista) > 1 ? trionfiDaProteggere(vista.mano, vista.trump) : [];
+  const scorta =
+    preseRimaste(vista) > 1
+      ? (protezioniDellaMano(vista).find((p) => p.alta.suit === vista.trump)?.scorta ?? [])
+      : [];
   if (scorta.length === 0) return trionfi;
 
   // Intoccabile e' anche la carta alta che quella scorta tiene in piedi: e' la

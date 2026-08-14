@@ -1216,6 +1216,113 @@ describe('i trionfi da proteggere', () => {
   });
 });
 
+/**
+ * La protezione del re terzo vale in qualunque palo. Sulla presa gia' vinta
+ * dal compagno non si butta ne' il re ne' le scartine che lo tengono in
+ * piedi: si carica solo cio' che non e' piu' una presa futura.
+ */
+describe('la protezione nei pali laterali', () => {
+  /**
+   * Tre giocatori, trionfo spade. Il chiamante apre a bastoni, il posto 1
+   * ci mette la maniglia: la presa e' dei difensori. Il bot al posto 2
+   * deve ancora giocare.
+   */
+  function manigliaDelCompagnoABastoni(manoDelBot: Card[]): HandState {
+    const state = tavolo({
+      players: 3,
+      trump: 'spade',
+      alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+      mani: [
+        [carta('bastoni', 'fante'), carta('spade', 2), carta('coppe', 2), carta('denari', 2)],
+        [carta('bastoni', 7), carta('spade', 3), carta('coppe', 3), carta('denari', 3)],
+        manoDelBot,
+      ],
+      leader: 0,
+    });
+    return giocate(state, [carta('bastoni', 'fante'), carta('bastoni', 7)]);
+  }
+
+  it('re terzo laterale, presa del compagno: butta la scartina, non il re', () => {
+    const state = manigliaDelCompagnoABastoni([
+      carta('bastoni', 're'),
+      carta('bastoni', 6),
+      carta('bastoni', 4),
+      carta('coppe', 4),
+    ]);
+    expect(state.turn).toBe(2);
+    expect(scelta(state).id).toBe('bastoni-6');
+  });
+
+  it('re secondo con asso e maniglia in giro: il re cade, si puo caricare', () => {
+    // La maniglia e l'asso di bastoni sono ancora fuori: una scartina sola
+    // non salva il re, e quei tre punti stanno meglio sulla presa del
+    // compagno. Il compagno vince a coppe, il bot e' privo e sceglie.
+    const state = giocate(
+      tavolo({
+        players: 3,
+        trump: 'spade',
+        alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+        mani: [
+          [carta('coppe', 2), carta('spade', 2), carta('denari', 2)],
+          [carta('coppe', 7), carta('spade', 3), carta('denari', 3)],
+          [carta('bastoni', 're'), carta('bastoni', 4), carta('denari', 4), carta('denari', 5)],
+        ],
+        leader: 0,
+      }),
+      [carta('coppe', 2), carta('coppe', 7)],
+    );
+    expect(state.turn).toBe(2);
+    expect(scelta(state).id).toBe('bastoni-re');
+  });
+
+  it('maniglia e asso dello stesso palo: carica la maniglia, l asso resta', () => {
+    const state = manigliaDelCompagnoABastoni([
+      carta('coppe', 7),
+      carta('coppe', 'asso'),
+      carta('denari', 2),
+      carta('denari', 3),
+    ]);
+    expect(state.turn).toBe(2);
+    expect(scelta(state).id).toBe('coppe-7');
+  });
+
+  it('carta alta sola nel suo palo: non si carica', () => {
+    const state = manigliaDelCompagnoABastoni([
+      carta('coppe', 7),
+      carta('denari', 2),
+      carta('denari', 3),
+      carta('spade', 4),
+    ]);
+    expect(state.turn).toBe(2);
+    expect(scelta(state).id).toBe('denari-2');
+  });
+
+  it('re solo nel suo palo: non si carica, anche se sopra girano asso e maniglia', () => {
+    const state = manigliaDelCompagnoABastoni([
+      carta('coppe', 're'),
+      carta('denari', 2),
+      carta('denari', 3),
+      carta('spade', 4),
+    ]);
+    expect(state.turn).toBe(2);
+    expect(scelta(state).id).toBe('denari-2');
+  });
+
+  it('nel caso reale il difensore butta il 6 e non il re', () => {
+    // Chiamante apre col fante di bastoni per stanare la maniglia. Il
+    // compagno ci e' obbligato e la mette: presa fatta. Il bot ha re, 6 e
+    // 4 di bastoni. La maniglia e' gia' uscita, sopra il re resta solo
+    // l'asso: una scartina basta, il 6 e' di troppo e ci va quello.
+    const state = manigliaDelCompagnoABastoni([
+      carta('bastoni', 're'),
+      carta('bastoni', 6),
+      carta('bastoni', 4),
+    ]);
+    expect(state.turn).toBe(2);
+    expect(scelta(state).id).toBe('bastoni-6');
+  });
+});
+
 describe('caricare sul compagno', () => {
   /**
    * Il chiamante, al posto 0, apre a coppe e si prende la presa; poi apre a
@@ -1355,10 +1462,9 @@ describe('caricare sul compagno', () => {
 });
 
 /**
- * Privo del palo aperto, sulla presa sicura del compagno: si carica una
- * carta alta solo se dietro ne resta un'altra che comanda ancora quel palo.
- * E' lo stesso ramo di sopra, allargato: prima si poteva scegliere solo fra
- * le carte del seme, adesso la mano intera.
+ * Privo del palo aperto, sulla presa sicura del compagno: si carica solo
+ * una carta che non e' piu' una presa futura. Dietro un'altra che comanda
+ * non basta, se quella che si butta e' ancora protetta dalle sue scartine.
  */
 describe('privo del palo, carica sul compagno', () => {
   /**
@@ -1461,9 +1567,9 @@ describe('privo del palo, carica sul compagno', () => {
         alliance: { kind: 'monte', caller: 0, chiamata: 'sola' },
         mani: [
           [carta('coppe', 7), carta('coppe', 'asso'), carta('coppe', 2)],
-          [carta('coppe', 6), carta('coppe', 'fante'), carta('spade', 'asso'), carta('spade', 2)],
-          [carta('coppe', 'cavallo'), carta('coppe', 5), carta('bastoni', 'asso'), carta('spade', 're')],
-          [carta('denari', 5), carta('denari', 6), carta('bastoni', 're'), carta('bastoni', 'fante')],
+          [carta('coppe', 6), carta('coppe', 'fante'), carta('spade', 're'), carta('spade', 4)],
+          [carta('coppe', 'cavallo'), carta('coppe', 5), carta('bastoni', 're'), carta('bastoni', 4)],
+          [carta('denari', 5), carta('denari', 6), carta('denari', 're'), carta('denari', 4)],
           [carta('coppe', 3), carta('coppe', 4), carta('coppe', 're'), carta('denari', 2)],
         ],
         monte: [],
@@ -1486,15 +1592,15 @@ describe('privo del palo, carica sul compagno', () => {
     expect(state.turn).toBe(0);
     const dopoIlDue = giocate(state, [carta('coppe', 2)]);
     expect(dopoIlDue.turn).toBe(1);
-    expect(scelta(dopoIlDue).id).toBe('spade-asso');
+    expect(scelta(dopoIlDue).id).toBe('spade-re');
 
-    const dopoIlPrimo = giocate(dopoIlDue, [carta('spade', 'asso')]);
+    const dopoIlPrimo = giocate(dopoIlDue, [carta('spade', 're')]);
     expect(dopoIlPrimo.turn).toBe(2);
-    expect(scelta(dopoIlPrimo).id).toBe('bastoni-asso');
+    expect(scelta(dopoIlPrimo).id).toBe('bastoni-re');
 
-    const dopoIlSecondo = giocate(dopoIlPrimo, [carta('bastoni', 'asso')]);
+    const dopoIlSecondo = giocate(dopoIlPrimo, [carta('bastoni', 're')]);
     expect(dopoIlSecondo.turn).toBe(3);
-    expect(scelta(dopoIlSecondo).id).toBe('bastoni-re');
+    expect(scelta(dopoIlSecondo).id).toBe('denari-re');
   });
 });
 
