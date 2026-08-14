@@ -617,6 +617,9 @@ export function useHand(): UseHand {
         const scambio = discardToMonte(allargata, scarti, session.config.monteSize);
         const hands = session.hands.map((mano, seat) => (seat === caller ? scambio.hand : mano));
         setError(null);
+        // La decisione si chiude: le carte toccate avevano il tocco leggero,
+        // questa e' l'altra voce, quella piena.
+        suona('scartoConfermato');
         registro.annota({
           tipo: 'scarto',
           giocatore: caller,
@@ -696,6 +699,9 @@ export function useHand(): UseHand {
       const caller = session.call.caller;
       if (caller === null) return;
       setError(null);
+      // Un tocco solo, e la scelta e' fatta: stesso suono dello scarto
+      // confermato, che anche qui la decisione si chiude e si va a giocare.
+      suona('scartoConfermato');
       registro.annota({
         tipo: 'amico',
         giocatore: caller,
@@ -830,8 +836,7 @@ export function useHand(): UseHand {
     const cappotto = finale !== null && finale.finished && scoreHand(finale).cappotto !== null;
     if (cappotto) suona('cappotto');
     // Poi la chiusura, che non festeggia: dice solo che le carte si posano.
-    // Suona qui dentro e quindi una volta per smazzata, che aprire e chiudere
-    // "rivedi la smazzata" non rimette in moto niente. E non suona mai sopra
+    // Suona qui dentro e quindi una volta per smazzata. E non suona mai sopra
     // quello che l'ha appena preceduta — la fanfara del cappotto, o il
     // "nessuno se la sente" che chiude la smazzata senza giocarla: in quei
     // due casi aspetta il suo turno e si sentono in fila.

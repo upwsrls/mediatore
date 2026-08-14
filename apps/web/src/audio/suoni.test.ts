@@ -56,6 +56,13 @@ describe('catalogo dei suoni', () => {
     expect(durata('scelta')).toBeLessThan(durata('vaiAlTavolo'));
   });
 
+  it('confermare lo scarto pesa piu di toccare una carta', () => {
+    // Quattro o cinque tocchi di fila restano il tocco del setup; la
+    // conferma, come entrare al tavolo, si sente una volta sola.
+    expect(pienezza('scartoConfermato')).toBeGreaterThan(pienezza('scelta'));
+    expect(durata('scartoConfermato')).toBeGreaterThan(durata('scelta'));
+  });
+
   it('il passo sta sotto qualunque dichiarazione', () => {
     // Passare e' lasciar correre: si sente, perche' e' cosi' che si capisce
     // che il giro va avanti, ma non dichiara niente e non deve sembrare che

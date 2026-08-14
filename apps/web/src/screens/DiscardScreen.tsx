@@ -2,6 +2,7 @@ import type { Card as CartaEngine } from '@mediatore/engine';
 import { takeMonte } from '@mediatore/engine';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
+import { useAudio } from '../audio/useAudio';
 import { Card } from '../components/Card';
 import { nomeGiocatore } from '../labels';
 import { ordinaCarte } from '../ordine';
@@ -15,6 +16,7 @@ interface Props {
 export function DiscardScreen({ session, onConferma }: Props): ReactElement {
   const caller = session.call.caller;
   const [scelte, setScelte] = useState<string[]>([]);
+  const audio = useAudio();
 
   if (caller === null) return <p>nessun chiamante</p>;
 
@@ -25,6 +27,9 @@ export function DiscardScreen({ session, onConferma }: Props): ReactElement {
   const quante = session.config.monteSize;
 
   function alterna(carta: CartaEngine): void {
+    // Stesso tocco del setup: se ne fanno quattro o cinque di fila, e deve
+    // restare leggero anche quando si toglie una carta dalla selezione.
+    audio.suona('scelta');
     setScelte((precedenti) =>
       precedenti.includes(carta.id)
         ? precedenti.filter((id) => id !== carta.id)

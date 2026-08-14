@@ -165,12 +165,29 @@ legend {
   position: sticky;
   top: 0;
   z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  /* Sempre una riga: con o senza avviso il tavolo sotto non si sposta. */
+  height: 40px;
+  overflow: hidden;
   margin: -12px -12px 0;
-  padding: 10px 12px;
+  padding: 0 12px;
   background: #0c2418;
   border-bottom: 1px solid var(--panno-chiaro);
   font-size: 14px;
   font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.riga-stato-riassunto {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .giocatore {
@@ -450,10 +467,11 @@ button.carta:active {
   opacity: 0.7;
 }
 
-/* Non giocabile: si vede che c e', si vede che e' spenta. Il velo resta
-   leggero perche' in una presa la maggior parte della mano e' bloccata. */
+/* Non giocabile: piu' scura e piu' spenta delle altre, abbastanza da
+   distinguerla a colpo d'occhio anche al sole, non tanto da non capire
+   quale carta e'. */
 .carta-disabilitata .carta-figura {
-  filter: grayscale(0.5) brightness(0.88);
+  filter: grayscale(0.72) brightness(0.55);
 }
 
 .carta-disabilitata {
@@ -855,15 +873,14 @@ button.carta:active {
 }
 
 /* Avvisi di passaggio nella riga di stato: non devono rubare la scena. */
-.cappotto-in-corsa,
 .sotto-soglia {
-  margin-left: 8px;
+  flex: 0 0 auto;
   padding: 1px 6px;
   border: 1px solid var(--oro-tenue);
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--oro-tenue);
   white-space: nowrap;
@@ -1298,18 +1315,6 @@ button.carta:active {
   --centro: clamp(112px, 17vh, 180px);
 }
 
-/* Le basi si rivedono in fila, con il nome sotto ogni carta. */
-.base-rivista {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: flex-start;
-  min-height: 108px;
-  background: var(--panno-chiaro);
-  border-radius: 10px;
-  padding: 10px;
-}
-
 .giocata {
   display: flex;
   flex-direction: column;
@@ -1728,18 +1733,6 @@ button.carta:active {
   gap: 10px;
   align-items: center;
   justify-content: space-between;
-}
-
-.banner-base {
-  background: #1f6f43;
-  position: absolute;
-  left: 50%;
-  bottom: 6px;
-  transform: translateX(-50%);
-  z-index: 3;
-  white-space: nowrap;
-  padding: 6px 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
 }
 
 .banner-errore {

@@ -264,14 +264,6 @@ export function TableScreen({
         </div>
 
         <div className="fila-basso">{sedia('basso')}</div>
-
-        {/* L annuncio dura un attimo: si appoggia sopra il tavolo invece di
-            aprirsi una riga tutta sua, che spingerebbe giu' la mano. */}
-        {pause !== null && pause.eIlMonte !== true && (
-          <div className="banner banner-base">
-            base a <PlayerName seat={pause.winner} state={state} /> per {pause.points} punti
-          </div>
-        )}
       </div>
 
       {!scopreIlMonte && (
@@ -313,30 +305,20 @@ export function TableScreen({
       )}
 
       <div className="zona-mano">
-        {/* Contro i bot la mano e' sempre la propria: non c'e' nessun telefono
-            da passare, si aspetta e basta. In hotseat invece si dice a chi
-            tocca, perche' lo schermo cambia proprietario a ogni giocata. */}
-        <p className="riga-mano">
-          {scopreIlMonte
-            ? session.umano !== null
-              ? 'la tua mano'
-              : `mano di ${nomeGiocatore(chiMostra)}`
-            : session.umano !== null ? (
-            tocca ? (
-              'la tua mano'
+        {/* Contro i bot quelle carte si sa di chi sono, e di chi sia il
+            turno lo dice il bordo del posto. In hotseat il telefono cambia
+            mani: chi lo prende deve leggere che ora tocca a lui. */}
+        {session.umano === null && (
+          <p className="riga-mano">
+            {scopreIlMonte || state.turn === session.puntoDiVista ? (
+              `mano di ${nomeGiocatore(chiMostra)}`
             ) : (
               <>
-                sta giocando <PlayerName seat={state.turn} state={state} />
+                mano di <PlayerName seat={state.turn} state={state} /> — passa il telefono
               </>
-            )
-          ) : state.turn === session.puntoDiVista ? (
-            'la tua mano'
-          ) : (
-            <>
-              mano di <PlayerName seat={state.turn} state={state} /> — passa il telefono
-            </>
-          )}
-        </p>
+            )}
+          </p>
+        )}
         {/* Due file finche' le carte sono tante, una sola da quando ci stanno
             tutte in fila. La larghezza delle carte la decide il numero di carte
             iniziali, quindi non balla mentre la mano si svuota. */}

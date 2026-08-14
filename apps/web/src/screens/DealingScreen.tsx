@@ -248,15 +248,13 @@ export function DealingScreen({
       </div>
 
       <div className="zona-mano">
-        <p className="riga-mano">
-          {scopreIlMonte
-            ? session.umano !== null
-              ? 'la tua mano'
-              : `mano di ${nomeGiocatore(chiMostra)}`
-            : distribuendo || session.umano !== null
-              ? 'la tua mano'
+        {session.umano === null && (
+          <p className="riga-mano">
+            {distribuendo || scopreIlMonte
+              ? `mano di ${nomeGiocatore(chiMostra)}`
               : `mano di ${nomeGiocatore(chiMostra)} — passa il telefono`}
-        </p>
+          </p>
+        )}
         {/* Le carte si appoggiano dove staranno a mano finita: la misura la
             decidono quelle iniziali, quindi non balla mentre la mano cresce. */}
         <div className="mano mano-a-file" style={{ '--per-fila': perFila } as CSSProperties}>

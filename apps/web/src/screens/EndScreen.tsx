@@ -1,7 +1,6 @@
 import type { HandScore, HandState } from '@mediatore/engine';
 import { scoreHand, settle, settleChiSeLaSenteScaduto } from '@mediatore/engine';
 import type { ReactElement } from 'react';
-import { useState } from 'react';
 import { PartiteRegistrate } from '../components/PartiteRegistrate';
 import { PlayerName } from '../components/PlayerName';
 import { PuntoDiVista } from '../components/PuntoDiVista';
@@ -17,7 +16,6 @@ import { useInCima } from '../inCima';
 import { nomeGiocatore } from '../labels';
 import { schieramenti } from '../roles';
 import type { Session } from '../useHand';
-import { ReviewScreen } from './ReviewScreen';
 
 interface Props {
   session: Session;
@@ -52,11 +50,7 @@ export function EndScreen({
   onEsci,
   onCambiaPuntoDiVista,
 }: Props): ReactElement {
-  const [rivedi, setRivedi] = useState(false);
-  // Le basi da rivedere sono un'altra scena, e si guardano dalla prima riga:
-  // aprirle a meta' pagina, dove si era arrivati leggendo il conteggio, sarebbe
-  // come aprire un quaderno a caso.
-  useInCima(rivedi ? 'rivedi' : 'conteggio');
+  useInCima('conteggio');
 
   if (state === null) {
     return (
@@ -75,17 +69,6 @@ export function EndScreen({
   // Solo una smazzata col monte ha una dichiarazione e quindi una posta.
   const dichiarazione = state.alliance.kind === 'monte' ? state.alliance : null;
   const { caller, friend } = schieramenti(state);
-
-  // Le prese si rivedono sopra il conteggio, ma il conto alla rovescia scorre
-  // anche qui: a zero si riparte comunque, che si stia guardando o no.
-  if (rivedi) {
-    return (
-      <>
-        <ContoAllaRovescia secondi={secondiAllaRipartenza} />
-        <ReviewScreen state={state} onChiudi={() => setRivedi(false)} />
-      </>
-    );
-  }
 
   return (
     <section className="schermata schermata-conteggio">
@@ -162,13 +145,6 @@ export function EndScreen({
       <ContoAllaRovescia secondi={secondiAllaRipartenza} />
 
       <div className="riga-bottoni">
-        <button
-          type="button"
-          className="bottone-grande bottone-secondario"
-          onClick={() => setRivedi(true)}
-        >
-          Rivedi la smazzata
-        </button>
         <button type="button" className="bottone-grande bottone-secondario" onClick={onEsci}>
           Esci dal tavolo
         </button>

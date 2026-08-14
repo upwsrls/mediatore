@@ -2,7 +2,6 @@ import type { Alliance, HandState } from '@mediatore/engine';
 import { createDeck, createHandState, tableConfig } from '@mediatore/engine';
 import { describe, expect, it } from 'vitest';
 import {
-  avvisoCappotto,
   avvisoSoglia,
   basiDellaSquadra,
   cappottoInCorsa,
@@ -169,29 +168,13 @@ describe('cappottoInCorsa', () => {
   });
 });
 
-describe('avvisoCappotto', () => {
-  it('nel liscio dice di chi si tratta: nessuno lo ha annunciato', () => {
-    expect(avvisoCappotto(conPrese([2, 2], { kind: 'liscio' }))).toBe(
-      'giocatore 2: cappotto in corsa',
-    );
-  });
-
-  it('col chiamante il nome sta gia nella riga, e non lo ripete', () => {
-    expect(avvisoCappotto(conPrese([1, 1], chiamante))).toBe('cappotto in corsa');
-  });
-
-  it('non dice niente quando non c e nessuna corsa', () => {
-    expect(avvisoCappotto(conPrese([1, 3], chiamante))).toBeNull();
-  });
-});
-
 describe('avvisoSoglia', () => {
   /** A quattro le prese sono nove: sei chiuse vuol dire tre da giocare. */
   const seiPrese = [0, 1, 2, 3, 0, 1];
 
   it('avvisa il chiamante sotto i 18 quando restano tre prese', () => {
     expect(avvisoSoglia(conPrese(seiPrese, chiamante, 4, 'monte', [0, 12, 0, 0]))).toBe(
-      'attenzione: sotto i 18 punti',
+      'sotto i 18',
     );
   });
 
@@ -217,7 +200,15 @@ describe('avvisoSoglia', () => {
     const cinquePrese = [0, 1, 2, 3, 4];
     expect(avvisoSoglia(conPrese(cinquePrese, coppia, 5, 'amico', [0, 10, 0, 10, 0]))).toBeNull();
     expect(avvisoSoglia(conPrese(cinquePrese, coppia, 5, 'amico', [0, 10, 0, 5, 0]))).toBe(
-      'attenzione: sotto i 18 punti',
+      'sotto i 18',
     );
+  });
+
+  it('a tre nomina i 25 e poi i 18, le due soglie del tavolo', () => {
+    const novePrese = [0, 1, 2, 0, 1, 2, 0, 1, 2];
+    const aTre = { kind: 'monte' as const, caller: 1, chiamata: 'normale' as const };
+    expect(avvisoSoglia(conPrese(novePrese, aTre, 3, 'monte', [0, 20, 0]))).toBe('sotto i 25');
+    expect(avvisoSoglia(conPrese(novePrese, aTre, 3, 'monte', [0, 12, 0]))).toBe('sotto i 18');
+    expect(avvisoSoglia(conPrese(novePrese, aTre, 3, 'monte', [0, 25, 0]))).toBeNull();
   });
 });

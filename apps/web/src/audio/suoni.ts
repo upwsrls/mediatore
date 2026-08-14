@@ -46,7 +46,9 @@ export type Suono =
   /** Una scelta del setup che cambia davvero: giocatori, variante, livello. */
   | 'scelta'
   /** Ci si alza e si va a giocare. */
-  | 'vaiAlTavolo';
+  | 'vaiAlTavolo'
+  /** Lo scarto si chiude, o si chiama l'amico: la scelta e' fatta. */
+  | 'scartoConfermato';
 
 /**
  * Una voce del suono. Il `tono` e' un oscillatore, il `fruscio` una manciata
@@ -248,6 +250,14 @@ export const SUONI: Record<Suono, Ricetta> = {
   vaiAlTavolo: sintetizzato(
     { forma: 'tono', onda: 'triangle', hz: 392, durata: 0.14, volume: 0.26 },
     { forma: 'tono', onda: 'triangle', hz: 587, durata: 0.2, volume: 0.26, ritardo: 0.09 },
+  ),
+
+  // Lo scarto del monte, o la carta dell'amico: la scelta si chiude e si
+  // va a giocare. Piu' pieno del tocco delle carte, che di quelli se ne
+  // fanno quattro o cinque di fila; questo si sente una volta sola.
+  scartoConfermato: sintetizzato(
+    { forma: 'tono', onda: 'triangle', hz: 554, durata: 0.12, volume: 0.22 },
+    { forma: 'tono', onda: 'triangle', hz: 831, durata: 0.16, volume: 0.22, ritardo: 0.09 },
   ),
 };
 

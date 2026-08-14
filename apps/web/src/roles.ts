@@ -1,6 +1,6 @@
 import type { Card, CompletedTrick, HandState } from '@mediatore/engine';
-import { createDeck, isAllyFor } from '@mediatore/engine';
-import { NOMI_CHIAMATA, chiHaAperto, chiamataDi, quantoVale, sogliaPiuBassa } from './chiamate';
+import { createDeck, isAllyFor, penalitaDaSoglia } from '@mediatore/engine';
+import { NOMI_CHIAMATA, chiHaAperto, chiamataDi, quantoVale, sogliaDi } from './chiamate';
 import { nomeGiocatore, puntiCorrenti } from './labels';
 
 export type Ruolo = 'chiamante' | 'amico' | 'neutro';
@@ -113,26 +113,15 @@ export function cappottoInCorsa(state: HandState): number | null {
   return chiuse.every((presa) => conIlChiamante.includes(presa.winner)) ? caller : null;
 }
 
-/**
- * L'avviso da appendere alla riga di stato. Nel liscio il nome e' tutto:
- * nessuno ha chiamato, quindi la riga non ha ancora detto di chi si parla, e
- * il cappotto li' ribalta la regola senza che nessuno lo veda arrivare.
- */
-export function avvisoCappotto(state: HandState): string | null {
-  const chi = cappottoInCorsa(state);
-  if (chi === null) return null;
-  if (state.alliance.kind !== 'liscio') return 'cappotto in corsa';
-  return `${nomeGiocatore(chi)}: cappotto in corsa`;
-}
-
 /** Da qui in poi le carte per rimediare sono poche: la soglia diventa una notizia. */
 const PRESE_FINALI = 3;
 
 /**
- * Il chiamante e' sotto la soglia piu' bassa del suo tavolo e mancano poche
- * prese: sapere che si sta per pagare il supplemento cambia come si giocano
- * le ultime carte. Nell'amico i punti sono quelli della coppia, come li conta
- * l'engine.
+ * Il chiamante e' sotto una soglia e mancano poche prese: sapere che si sta
+ * per pagare il supplemento cambia come si giocano le ultime carte. A tre
+ * ce ne sono due, e si nomina quella sotto cui sta: i 25 prima, i 18 se
+ * scende ancora. I numeri li dice l'engine, qui si legge soltanto.
+ * Nell'amico i punti sono quelli della coppia.
  */
 export function avvisoSoglia(state: HandState): string | null {
   const { caller, conIlChiamante } = schieramenti(state);
@@ -141,12 +130,10 @@ export function avvisoSoglia(state: HandState): string | null {
   const restano = state.config.tricks - state.completedTricks.length;
   if (restano <= 0 || restano > PRESE_FINALI) return null;
 
-  const soglia = sogliaPiuBassa(state.config.players);
-  if (soglia === null) return null;
-
   const punti = puntiCorrenti(state);
   const suoi = conIlChiamante.reduce((somma, seat) => somma + (punti[seat] ?? 0), 0);
-  return suoi < soglia ? `attenzione: sotto i ${soglia} punti` : null;
+  const soglia = sogliaDi(penalitaDaSoglia(suoi, state.config.players), state.config.players);
+  return soglia !== null ? `sotto i ${soglia}` : null;
 }
 
 /** Riga di stato: la configurazione della smazzata in parole semplici. */
