@@ -58,9 +58,9 @@ export function TableScreen({
   const posizioni = disposizione(session.config.players, session.puntoDiVista);
   const postoDi = (posizione: Posizione): number => posizioni.indexOf(posizione);
 
-  // Contro i bot sotto c'e' sempre la mano di chi gioca davvero: le carte
-  // restano in vista anche mentre pensano gli altri, solo spente. In hotseat
-  // invece il telefono gira, quindi si mostra la mano di chi tocca.
+  // Contro i bot sotto c'e' sempre la mano di chi gioca davvero: si guarda
+  // anche mentre pensano gli altri. In hotseat il telefono gira, quindi si
+  // mostra la mano di chi tocca.
   const chiMostra = session.umano ?? state.turn;
   const tocca = state.turn === chiMostra;
 
@@ -329,7 +329,10 @@ export function TableScreen({
           style={{ '--per-fila': perFila } as CSSProperties}
         >
           {posti.map(({ carta, riga, scarto }) => {
-            const giocabile = !scopreIlMonte && legaliIds.has(carta.id) && pause === null;
+            // Si spengono solo le non giocabili, e solo quando tocca a chi
+            // guarda: mentre aspetta la mano si vede accesa, per decidere.
+            const puoGiocare = tocca && !scopreIlMonte && pause === null;
+            const giocabile = puoGiocare && legaliIds.has(carta.id);
             return (
               <div
                 key={carta.id}
@@ -338,7 +341,7 @@ export function TableScreen({
               >
                 <Card
                   card={carta}
-                  disabled={!giocabile}
+                  disabled={puoGiocare && !legaliIds.has(carta.id)}
                   // Mentre pensa un altro non c'e' nessun motivo da spiegare:
                   // non e' la carta a essere sbagliata, e' il turno.
                   motivo={
@@ -346,7 +349,7 @@ export function TableScreen({
                       ? undefined
                       : motivoNonGiocabile(carta, legali, state)
                   }
-                  onClick={(scelta) => onGioca(scelta.id)}
+                  onClick={giocabile ? (scelta) => onGioca(scelta.id) : undefined}
                 />
               </div>
             );
