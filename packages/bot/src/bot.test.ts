@@ -22,7 +22,7 @@ import {
 } from './memoria.ts';
 import { scegliScarti } from './scarta.ts';
 import { possoVincere, rischioDiPerdere } from './valuta.ts';
-import { vistaDaStato } from './vista.ts';
+import { sonoIlChiamante, vistaDaStato } from './vista.ts';
 
 const MAZZO = createDeck();
 const TRIONFO: Suit = 'bastoni';
@@ -48,10 +48,12 @@ function tavolo(args: {
   leader?: number;
   variant?: Variant;
   trump?: Suit;
+  /** Solo per le prove sull'ultima base: il resto del tavolo non lo tocca. */
+  tricks?: number;
 }): HandState {
   const config = tableConfig(args.players, args.variant ?? 'monte');
   return createHandState({
-    config,
+    config: args.tricks !== undefined ? { ...config, tricks: args.tricks } : config,
     dealer: 0,
     trump: args.trump ?? TRIONFO,
     alliance: args.alliance,
@@ -593,6 +595,174 @@ describe('arrassarsi', () => {
     });
 
     expect(scelta(state).id).toBe('coppe-re');
+  });
+});
+
+/**
+ * Il difensore non si arrassa. `siArrassa` lo ferma gia' dal tirare due
+ * trionfi di fila, ma l'apertura con la maniglia passava da
+ * `convieneTirareTrionfo`, che per chi non ha chiamato diceva sempre di si'.
+ *
+ * I trionfi che non sono in giro stanno in mano al bot: al tavolo di prova
+ * il monte il difensore non lo vede, e lasciarli li' li conterebbe come
+ * ancora in gioco.
+ */
+describe('il difensore non si arrassa', () => {
+  const DENARI: Suit = 'denari';
+
+  function trionfiInMano(seme: Suit, ...esclusi: Rank[]): Card[] {
+    const fuori = new Set<Rank>(esclusi);
+    return MAZZO.filter((c) => c.suit === seme && !fuori.has(c.rank));
+  }
+
+  it('con la maniglia e due trionfi in giro, senza firme laterali, apre altrove', () => {
+    const state = tavolo({
+      players: 5,
+      trump: DENARI,
+      alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+      mani: [
+        [carta(DENARI, 'asso'), carta('coppe', 4), carta('spade', 3)],
+        [
+          ...trionfiInMano(DENARI, 'asso', 're'),
+          carta('coppe', 2),
+          carta('coppe', 3),
+          carta('spade', 4),
+        ],
+        [carta(DENARI, 're'), carta('coppe', 5), carta('spade', 5)],
+        [carta('coppe', 6), carta('spade', 6), carta('bastoni', 2)],
+        [carta('coppe', 'fante'), carta('spade', 'fante'), carta('bastoni', 3)],
+      ],
+      monte: [],
+      leader: 1,
+    });
+
+    const vista = vistaDaStato(state, 1);
+    expect(trionfiAvversariRimasti(vista)).toBe(2);
+    expect(scelta(state).suit).not.toBe(DENARI);
+  });
+
+  it('tira la maniglia quando si porta via l ultimo trionfo e ha firme laterali', () => {
+    const state = tavolo({
+      players: 5,
+      trump: DENARI,
+      alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+      mani: [
+        [carta(DENARI, 2), carta('spade', 3), carta('bastoni', 2)],
+        [...trionfiInMano(DENARI, 2), carta('coppe', 7), carta('coppe', 2)],
+        [carta('spade', 4), carta('spade', 5), carta('bastoni', 3)],
+        [carta('spade', 6), carta('bastoni', 4), carta('bastoni', 5)],
+        [carta('spade', 'fante'), carta('bastoni', 6), carta('bastoni', 'fante')],
+      ],
+      monte: [],
+      leader: 1,
+    });
+
+    const vista = vistaDaStato(state, 1);
+    expect(trionfiAvversariRimasti(vista)).toBe(1);
+    expect(scelta(state).id).toBe('denari-7');
+  });
+
+  it('non la tira se si porta via l ultimo ma non ha firme laterali', () => {
+    const state = tavolo({
+      players: 5,
+      trump: DENARI,
+      alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+      mani: [
+        [carta(DENARI, 2), carta('coppe', 7), carta('spade', 3)],
+        [...trionfiInMano(DENARI, 2), carta('coppe', 2), carta('coppe', 3)],
+        [carta('spade', 4), carta('spade', 5), carta('bastoni', 2)],
+        [carta('spade', 6), carta('bastoni', 3), carta('bastoni', 4)],
+        [carta('spade', 'fante'), carta('bastoni', 5), carta('bastoni', 6)],
+      ],
+      monte: [],
+      leader: 1,
+    });
+
+    const vista = vistaDaStato(state, 1);
+    expect(trionfiAvversariRimasti(vista)).toBe(1);
+    expect(scelta(state).suit).not.toBe(DENARI);
+  });
+
+  it('con solo trionfi in mano gioca trionfo: non ha scelta', () => {
+    const state = tavolo({
+      players: 3,
+      alliance: { kind: 'monte', caller: 1, chiamata: 'normale' },
+      mani: [
+        [carta(TRIONFO, 7), carta(TRIONFO, 5), carta(TRIONFO, 2)],
+        [carta('coppe', 3), carta('coppe', 4), carta('denari', 3)],
+        [carta('coppe', 5), carta('coppe', 6), carta('denari', 5)],
+      ],
+      monte: [],
+      leader: 0,
+    });
+
+    expect(scelta(state).suit).toBe(TRIONFO);
+  });
+
+  it('all ultima base con un trionfo firma lo gioca', () => {
+    const state = tavolo({
+      players: 3,
+      tricks: 1,
+      alliance: { kind: 'monte', caller: 1, chiamata: 'normale' },
+      mani: [
+        [carta(TRIONFO, 7), carta('coppe', 2)],
+        [carta('coppe', 3), carta('denari', 3)],
+        [carta('coppe', 4), carta('denari', 4)],
+      ],
+      monte: trionfiNelMonte(7),
+      leader: 0,
+    });
+
+    expect(scelta(state).id).toBe('bastoni-7');
+  });
+
+  it('il chiamante con la maniglia continua ad arrassarsi', () => {
+    const state = tavolo({
+      players: 3,
+      alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+      mani: [
+        [carta(TRIONFO, 7), carta(TRIONFO, 'asso'), carta(TRIONFO, 're'), carta('coppe', 2)],
+        [carta(TRIONFO, 2), carta('spade', 3), carta('denari', 3)],
+        [carta(TRIONFO, 3), carta('spade', 5), carta('denari', 5)],
+      ],
+      monte: trionfiNelMonte(7, 'asso', 're', 2, 3),
+      leader: 0,
+    });
+
+    expect(sonoIlChiamante(vistaDaStato(state, 0))).toBe(true);
+    expect(trionfiAvversariRimasti(vistaDaStato(state, 0))).toBe(2);
+    expect(scelta(state).suit).toBe(TRIONFO);
+  });
+
+  it('nel caso reale il difensore non apre piu con la maniglia', () => {
+    // A cinque, trionfo denari, quarta base: il difensore ha la maniglia,
+    // in giro restano asso e 4, e laterali che non firmano niente. Prima
+    // apriva a denari; il chiamante ci metteva il 4 e si liberava di un
+    // trionfo scarso senza pagare.
+    const state = tavolo({
+      players: 5,
+      trump: DENARI,
+      alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+      mani: [
+        [carta(DENARI, 'asso'), carta(DENARI, 4), carta('coppe', 4), carta('spade', 2)],
+        [
+          ...trionfiInMano(DENARI, 'asso', 4),
+          carta('coppe', 2),
+          carta('coppe', 3),
+          carta('spade', 3),
+        ],
+        [carta('coppe', 5), carta('spade', 5), carta('bastoni', 2), carta('bastoni', 3)],
+        [carta('coppe', 6), carta('spade', 6), carta('bastoni', 4), carta('bastoni', 5)],
+        [carta('coppe', 'fante'), carta('spade', 'fante'), carta('bastoni', 6), carta('bastoni', 7)],
+      ],
+      monte: [],
+      leader: 1,
+    });
+
+    const vista = vistaDaStato(state, 1);
+    expect(trionfiAvversariRimasti(vista)).toBe(2);
+    expect(scelta(state).id).not.toBe('denari-7');
+    expect(scelta(state).suit).not.toBe(DENARI);
   });
 });
 

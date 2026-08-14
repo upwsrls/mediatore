@@ -249,6 +249,26 @@ function basiInPericolo(vista: VistaDelBot): Card[] {
 }
 
 /**
+ * Le laterali che comandano il loro palo: appena in giro non resta un
+ * trionfo diventano firme, e da li' nessuno le uccide piu'. E' il motivo
+ * per cui un difensore tira l'ultimo trionfo.
+ */
+function lateraliCheDiventanoFirme(vista: VistaDelBot): Card[] {
+  return vista.mano.filter((carta) => carta.suit !== vista.trump && ePadrona(vista, carta));
+}
+
+/**
+ * Il difensore tira trionfo per se', non per ripulire: solo se questo colpo
+ * si porta via l'ultimo rimasto e in mano ha laterali che da quel momento
+ * nessuno puo' piu' tagliare. Meglio ancora se il chiamante di quel palo
+ * e' gia' vuoto, ma le laterali bastano: tanto i trionfi sono finiti.
+ */
+function chiudeIlGiocoASuoFavore(vista: VistaDelBot): boolean {
+  if (trionfiAvversariRimasti(vista) !== 1) return false;
+  return lateraliCheDiventanoFirme(vista).length > 0;
+}
+
+/**
  * Quando tirare trionfo di propria iniziativa ha un senso. Vale per ogni
  * trionfo tirato per scelta, firma compresa: sono gli stessi freni.
  *
@@ -257,9 +277,11 @@ function basiInPericolo(vista: VistaDelBot): Card[] {
  * scartano quello che non serve e si tengono i punti. Da li' in poi si va a
  * incassare nei pali laterali.
  *
- * Gli altri due riguardano il chiamante, perche' e' lui che si arrassa: chi
- * non ha chiamato non sta ripulendo nessuno, tira il suo trionfo firma per
- * fare la presa e basta.
+ * Gli altri due riguardano il chiamante, perche' e' lui che si arrassa.
+ * `siArrassa` lo ferma gia' dal tirare due trionfi di fila: questo freno
+ * deve coprire anche l'apertura singola, la maniglia buttata sulla presa
+ * vuota. Prima il difensore passava di qui con un si' automatico, e la
+ * maniglia se ne andava per niente.
  *
  * Il secondo, e viene prima di quello dopo, e' che i trionfi bastino a
  * finirli: con pochi trionfi non li si ripulisce, e arrassarsi diventa un
@@ -268,12 +290,19 @@ function basiInPericolo(vista: VistaDelBot): Card[] {
  *
  * Il terzo e' avere basi laterali che qualcuno puo' ancora tagliare: quelle
  * si incassano prima, che ad arrassarsi si fa sempre in tempo.
+ *
+ * Il difensore tira solo se chiude il gioco a suo favore, o se e' l'ultima
+ * base e la firma si incassa. Fuori da li' apre in un altro palo.
  */
 function convieneTirareTrionfo(vista: VistaDelBot): boolean {
+  if (sonoIlChiamante(vista)) {
+    if (trionfiAvversariRimasti(vista) === 0) return false;
+    if (!trionfiBastanoARipulire(vista)) return false;
+    return basiInPericolo(vista).length === 0;
+  }
+  if (preseRimaste(vista) <= 1) return true;
   if (trionfiAvversariRimasti(vista) === 0) return false;
-  if (!sonoIlChiamante(vista)) return true;
-  if (!trionfiBastanoARipulire(vista)) return false;
-  return basiInPericolo(vista).length === 0;
+  return chiudeIlGiocoASuoFavore(vista);
 }
 
 /**
