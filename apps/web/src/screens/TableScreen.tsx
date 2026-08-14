@@ -1,7 +1,8 @@
 import type { Card as CartaEngine, HandState } from '@mediatore/engine';
 import { chiVedeIlMonte, legalPlaysFor, totalPoints } from '@mediatore/engine';
 import type { CSSProperties, ReactElement } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useAudio } from '../audio/useAudio';
 import { Card } from '../components/Card';
 import { IntestazioneTavolo } from '../components/IntestazioneTavolo';
 import { PlayerName } from '../components/PlayerName';
@@ -18,6 +19,7 @@ import type { Livello } from '../livello';
 import { conAiuti } from '../livello';
 import { basiDellaSquadra, cartaChiamata, schieramenti } from '../roles';
 import { chiTieneLaCarta } from '../spia';
+import { toccoDellaMano } from '../solleva';
 import { contaTrionfi } from '../trionfo';
 import type { Session, TrickPause } from '../useHand';
 
@@ -40,6 +42,8 @@ export function TableScreen({
 }: Props): ReactElement {
   const [monteAperto, setMonteAperto] = useState(false);
   const [basiAperte, setBasiAperte] = useState(false);
+  const [sollevata, setSollevata] = useState<string | null>(null);
+  const audio = useAudio();
   // A smazzata chiusa il monte si scopre al centro, il tempo di guardarlo:
   // il mucchietto coperto in cima e il bottone per vederlo non servono piu'.
   const scopreIlMonte = session.phase === 'monte';
@@ -75,6 +79,24 @@ export function TableScreen({
   const legali = tocca ? legalPlaysFor(state, chiMostra) : [];
   const legaliIds = new Set(legali.map((carta) => carta.id));
   const obbligo = tocca ? obbligoCorrente(mano, legali, state) : null;
+  const puoGiocare = tocca && !scopreIlMonte && pause === null;
+
+  // Due tocchi: la carta resta alzata finche' non si conferma o non si
+  // cambia idea. Se il turno se ne va, non puo' restare sollevata.
+  useEffect(() => {
+    if (!puoGiocare) setSollevata(null);
+  }, [puoGiocare, state.turn]);
+
+  useEffect(() => {
+    if (sollevata === null) return undefined;
+    function giu(evento: PointerEvent): void {
+      const dove = evento.target;
+      if (dove instanceof Element && dove.closest('.mano-a-file') !== null) return;
+      setSollevata(null);
+    }
+    document.addEventListener('pointerdown', giu);
+    return () => document.removeEventListener('pointerdown', giu);
+  }, [sollevata]);
 
   // Chi puo' guardare il monte lo dice l'engine: nella colonna e nella chi se
   // la sente non lo vede nessuno, nemmeno chi ha dichiarato.
@@ -160,6 +182,13 @@ export function TableScreen({
     chiamata === 'sola' ? 'niente scambio' : null,
     puoVedereMonte ? null : 'a base chiusa',
   ].filter((nota): nota is string => nota !== null);
+
+  function alzaOGioca(scelta: CartaEngine): void {
+    const tocco = toccoDellaMano(sollevata, scelta.id);
+    setSollevata(tocco.sollevata);
+    if (tocco.gioca) onGioca(scelta.id);
+    else audio.suona('scelta');
+  }
 
   return (
     <section className="schermata tavolo">
@@ -331,12 +360,13 @@ export function TableScreen({
           {posti.map(({ carta, riga, scarto }) => {
             // Si spengono solo le non giocabili, e solo quando tocca a chi
             // guarda: mentre aspetta la mano si vede accesa, per decidere.
-            const puoGiocare = tocca && !scopreIlMonte && pause === null;
             const giocabile = puoGiocare && legaliIds.has(carta.id);
             return (
               <div
                 key={carta.id}
-                className="posto-carta"
+                className={
+                  sollevata === carta.id ? 'posto-carta posto-carta-sollevata' : 'posto-carta'
+                }
                 style={{ '--riga': riga, '--scarto': scarto } as CSSProperties}
               >
                 <Card
@@ -349,7 +379,7 @@ export function TableScreen({
                       ? undefined
                       : motivoNonGiocabile(carta, legali, state)
                   }
-                  onClick={giocabile ? (scelta) => onGioca(scelta.id) : undefined}
+                  {...(giocabile ? { onClick: alzaOGioca } : {})}
                 />
               </div>
             );

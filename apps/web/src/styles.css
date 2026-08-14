@@ -329,6 +329,23 @@ legend {
 }
 
 /*
+ * La carta scelta si stacca dal ventaglio senza allungare la mano: e' lo
+ * stesso translate delle altre, solo un po' piu' in alto, e la fascia resta
+ * alta due file. Sale sopra le sorelle, cosi' non si sbaglia quale e'.
+ */
+.posto-carta-sollevata {
+  z-index: 3;
+  transform: translate(
+    calc(-50% + var(--scarto) * (var(--larghezza-carta) + var(--gap-carte))),
+    calc((var(--riga) + var(--fila-appesa, 0)) * (var(--alt-carta) + var(--gap-carte)) - 22px)
+  );
+}
+
+.posto-carta-sollevata .carta {
+  outline: 3px solid var(--oro);
+}
+
+/*
  * Poche carte, quelle che ci stanno tutte in una fila: la fila sola si appende
  * a mezza fila dentro la fascia delle due. Cosi' l'altezza liberata non resta
  * tutta sotto le carte come un buco, e le carte ci arrivano con la stessa
