@@ -4,8 +4,10 @@ import { describe, expect, it } from 'vitest';
 import {
   avvisoCappotto,
   avvisoSoglia,
+  basiDellaSquadra,
   cappottoInCorsa,
   cartaChiamata,
+  haCompagniDiSquadra,
   riassuntoSmazzata,
   ruoloDi,
 } from './roles';
@@ -71,6 +73,67 @@ describe('cartaChiamata', () => {
     // E chi la tiene resta uno qualunque, finche' non la gioca.
     expect(ruoloDi(3, conCarta)).toBe('neutro');
     expect(riassuntoSmazzata(conCarta)).not.toContain('giocatore 3');
+  });
+});
+
+describe('basiDellaSquadra', () => {
+  const vincitori = (state: HandState, seat: number): number[] =>
+    basiDellaSquadra(state, seat).map((base) => base.winner);
+
+  it('nel liscio ognuno vede solo le proprie', () => {
+    const stato = conPrese([0, 1, 0, 2], { kind: 'liscio' });
+    expect(vincitori(stato, 0)).toEqual([0, 0]);
+    expect(vincitori(stato, 1)).toEqual([1]);
+    expect(vincitori(stato, 2)).toEqual([2]);
+    expect(vincitori(stato, 3)).toEqual([]);
+    expect(haCompagniDiSquadra(stato, 0)).toBe(false);
+  });
+
+  it('il chiamante del monte vede solo le sue, gli avversari le loro', () => {
+    const stato = conPrese([1, 0, 2, 1], chiamante);
+    expect(vincitori(stato, 1)).toEqual([1, 1]);
+    expect(vincitori(stato, 0)).toEqual([0, 2]);
+    expect(vincitori(stato, 2)).toEqual([0, 2]);
+    expect(vincitori(stato, 3)).toEqual([0, 2]);
+    expect(vincitori(stato, 1)).not.toContain(0);
+    expect(vincitori(stato, 0)).not.toContain(1);
+    expect(haCompagniDiSquadra(stato, 1)).toBe(false);
+    expect(haCompagniDiSquadra(stato, 0)).toBe(true);
+  });
+
+  it('prima della rivelazione ognuno vede solo le proprie, amico compreso', () => {
+    const nascosto: Alliance = {
+      kind: 'amico',
+      caller: 0,
+      calledCard: 'A-denari',
+      friend: null,
+    };
+    const stato = conPrese([0, 2, 1, 0], nascosto, 5, 'amico');
+    expect(vincitori(stato, 0)).toEqual([0, 0]);
+    expect(vincitori(stato, 2)).toEqual([2]);
+    expect(vincitori(stato, 1)).toEqual([1]);
+    expect(vincitori(stato, 3)).toEqual([]);
+    // L'amico non vede le basi del chiamante: se le vedesse, si riconoscerebbe.
+    expect(vincitori(stato, 2)).not.toContain(0);
+    expect(haCompagniDiSquadra(stato, 0)).toBe(false);
+    expect(haCompagniDiSquadra(stato, 2)).toBe(false);
+    expect(haCompagniDiSquadra(stato, 1)).toBe(false);
+  });
+
+  it('dopo la rivelazione la coppia vede le sue basi, gli altri le loro', () => {
+    const coppia: Alliance = { kind: 'amico', caller: 0, calledCard: 'A-denari', friend: 2 };
+    const stato = conPrese([0, 2, 1, 3], coppia, 5, 'amico');
+    expect(vincitori(stato, 0)).toEqual([0, 2]);
+    expect(vincitori(stato, 2)).toEqual([0, 2]);
+    expect(vincitori(stato, 1)).toEqual([1, 3]);
+    expect(vincitori(stato, 3)).toEqual([1, 3]);
+    expect(vincitori(stato, 4)).toEqual([1, 3]);
+    expect(vincitori(stato, 0)).not.toContain(1);
+    expect(vincitori(stato, 1)).not.toContain(0);
+    expect(vincitori(stato, 1)).not.toContain(2);
+    expect(haCompagniDiSquadra(stato, 0)).toBe(true);
+    expect(haCompagniDiSquadra(stato, 2)).toBe(true);
+    expect(haCompagniDiSquadra(stato, 1)).toBe(true);
   });
 });
 

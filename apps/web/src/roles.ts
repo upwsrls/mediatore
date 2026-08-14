@@ -1,4 +1,4 @@
-import type { Card, HandState } from '@mediatore/engine';
+import type { Card, CompletedTrick, HandState } from '@mediatore/engine';
 import { createDeck, isAllyFor } from '@mediatore/engine';
 import { NOMI_CHIAMATA, chiHaAperto, chiamataDi, quantoVale, sogliaPiuBassa } from './chiamate';
 import { nomeGiocatore, puntiCorrenti } from './labels';
@@ -35,6 +35,28 @@ export function schieramenti(state: HandState): Schieramenti {
     conIlChiamante: posti.filter((seat) => isAlly(seat, caller)),
     contro: posti.filter((seat) => !isAlly(seat, caller)),
   };
+}
+
+/**
+ * Le basi che questo posto puo' rivedere: quelle vinte dalla sua squadra.
+ * Le squadre le decide isAllyFor, qui non si tocca niente. Nel liscio e
+ * nell'amico prima della rivelazione quel predicato non allea nessuno, quindi
+ * ognuno vede solo le proprie — e da quello che vede non si capisce chi sia
+ * l'amico, perche' l'amico vede le stesse cose di qualsiasi altro.
+ */
+export function basiDellaSquadra(state: HandState, seat: number): CompletedTrick[] {
+  const isAlly = isAllyFor(state.alliance);
+  return state.completedTricks.filter((base) => isAlly(base.winner, seat));
+}
+
+/**
+ * Se questo posto ha qualcuno con cui divide le basi. Prima della
+ * rivelazione e' falso per tutti, amico compreso: dirlo ad alta voce
+ * sarebbe come puntarlo.
+ */
+export function haCompagniDiSquadra(state: HandState, seat: number): boolean {
+  const isAlly = isAllyFor(state.alliance);
+  return state.hands.some((_, altro) => altro !== seat && isAlly(altro, seat));
 }
 
 const MAZZO = createDeck();

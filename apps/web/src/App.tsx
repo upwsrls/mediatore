@@ -34,7 +34,10 @@ export function App(): ReactElement {
     session !== null &&
     (session.phase === 'distribuzione' ||
       session.phase === 'call' ||
-      (decideUnBot && (session.phase === 'discard' || session.phase === 'friend')));
+      (decideUnBot && (session.phase === 'discard' || session.phase === 'friend')) ||
+      // Smazzata non giocata, ma c'e' un monte da scoprire: stesso tavolo
+      // della chiamata, senza i bottoni, le carte al centro.
+      (session.phase === 'monte' && state === null));
 
   // Cambiando scena la pagina torna in cima: la distribuzione, la chiamata e
   // l'attesa sono la stessa scena, e li' non si tocca niente.
@@ -54,7 +57,12 @@ export function App(): ReactElement {
       {session === null && <SetupScreen onStart={hand.start} />}
 
       {session !== null && alTavolo && (
-        <DealingScreen session={session} onDecide={hand.decidi} />
+        <DealingScreen
+          session={session}
+          onDecide={hand.decidi}
+          onCarteScoperte={hand.cambiaCarteScoperte}
+          onLivello={hand.cambiaLivello}
+        />
       )}
 
       {session !== null && session.phase === 'discard' && !decideUnBot && (
@@ -83,7 +91,9 @@ export function App(): ReactElement {
         <FriendScreen session={session} onScegli={hand.scegliAmico} />
       )}
 
-      {session !== null && session.phase === 'play' && state !== null && (
+      {session !== null &&
+        (session.phase === 'play' || session.phase === 'monte') &&
+        state !== null && (
         <TableScreen
           session={session}
           state={state}

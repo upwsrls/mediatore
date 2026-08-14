@@ -3,12 +3,14 @@ import { currentCaller } from '@mediatore/engine';
 import type { CSSProperties, ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { Card } from '../components/Card';
-import { SuitIcon } from '../components/SuitIcon';
+import { IntestazioneTavolo } from '../components/IntestazioneTavolo';
+import { MonteScopertoInTavola } from '../components/MonteScopertoInTavola';
 import { MonteInTavola, PostoTavolo } from '../components/Tavolo';
 import { DORSO } from '../carte/immagini';
 import { NOMI_CHIAMATA, SPECIALI, costo } from '../chiamate';
 import { CARTA_DISTRIBUITA_MS, chiRiceve, quanteNeHa } from '../distribuzione';
-import { SEMI, nomeGiocatore } from '../labels';
+import { nomeGiocatore } from '../labels';
+import type { Livello } from '../livello';
 import { cartePerFila, postiDellaMano } from '../mano';
 import { ordinaCarte } from '../ordine';
 import type { Posizione } from '../posti';
@@ -18,6 +20,8 @@ import type { Session } from '../useHand';
 interface Props {
   session: Session;
   onDecide: (player: number, action: CallAction) => void;
+  onCarteScoperte: (acceso: boolean) => void;
+  onLivello: (livello: Livello) => void;
 }
 
 /**
@@ -48,12 +52,20 @@ function annuncioDellaChiamata(call: CallState): string | null {
  * invece delle giocate e sotto i bottoni della chiamata invece delle carte
  * da giocare.
  */
-export function DealingScreen({ session, onDecide }: Props): ReactElement {
+export function DealingScreen({
+  session,
+  onDecide,
+  onCarteScoperte,
+  onLivello,
+}: Props): ReactElement {
   // Chi dichiara fuori turno: finche' non e' scelto vale chi e' di turno,
   // cosi' la riga non impone una scelta a chi sta solo chiamando normale.
   const [dichiarante, setDichiarante] = useState<number | null>(null);
 
   const distribuendo = session.phase === 'distribuzione';
+  // Nessuno ha aperto: il monte si scopre qui, sullo stesso tavolo della
+  // chiamata, senza i bottoni e senza aspettare un gioco che non c'e' stato.
+  const scopreIlMonte = session.phase === 'monte';
   const players = session.config.players;
   const posizioni = disposizione(players, session.puntoDiVista);
   const postoDi = (posizione: Posizione): number => posizioni.indexOf(posizione);
@@ -98,6 +110,7 @@ export function DealingScreen({ session, onDecide }: Props): ReactElement {
   const conMonte = session.config.monteSize > 0;
   const scoperta = session.scoperta;
   const chiDichiara = session.umano ?? dichiarante ?? diTurno ?? session.puntoDiVista;
+  const spia = session.carteScoperte && session.umano !== null;
 
   // Chi ha chiamato sceglie gli scarti o l'amico: al tavolo si resta seduti e
   // si aspetta, come si aspetta il turno di chiunque altro. Delle sue carte
@@ -132,55 +145,53 @@ export function DealingScreen({ session, onDecide }: Props): ReactElement {
         // L'oro sul chiamante si accende appena chiama e non si spegne piu':
         // da qui passa alla schermata del gioco, che lo legge dalle squadre.
         chiamante={seat === chiamante}
-        spiate={null}
+        spiate={
+          spia && session.umano !== null && seat !== session.umano
+            ? ordinaCarte(
+                (session.hands[seat] ?? []).slice(0, quante(seat)),
+                distribuendo ? null : session.trump,
+              )
+            : null
+        }
         players={players}
       />
     );
   };
 
   return (
-    <section className="schermata tavolo tavolo-prima-del-gioco">
-      <header className="intestazione">
-        {distribuendo ? (
-          <>
-            <span>si distribuisce</span>
-            <span>{session.config.handSize} carte a testa</span>
-          </>
-        ) : (
-          <>
-            <span>
-              trionfo{' '}
-              <strong className={SEMI[session.trump].classe}>
-                <SuitIcon suit={session.trump} size="riga" /> {session.trump}
-              </strong>
-            </span>
-            <span>
-              {session.umano !== null && tocca
-                ? 'chiami o passi'
-                : session.umano === null
-                  ? 'passa il telefono'
-                  : 'sta pensando'}
-            </span>
-          </>
-        )}
-      </header>
+    <section
+      className={
+        scopreIlMonte
+          ? 'schermata tavolo tavolo-prima-del-gioco tavolo-col-monte'
+          : 'schermata tavolo tavolo-prima-del-gioco'
+      }
+    >
+      <div className="riga-stato">{statoPrimaDelGioco(session, tocca, diTurno)}</div>
 
-      <div className="tavolo-scena">
+      <IntestazioneTavolo
+        session={session}
+        basi={scopreIlMonte ? 'il monte' : `base 1 di ${session.config.tricks}`}
+        onCarteScoperte={onCarteScoperte}
+        onLivello={onLivello}
+      />
+
+      <div className={spia ? 'tavolo-scena tavolo-spiato' : 'tavolo-scena'}>
         <div className="lato lato-sinistro">
           {sedia('sinistra-2')}
           {sedia('sinistra-1')}
         </div>
 
         <div className="fila-alto">
-          {/* Il monte compare a carte finite: prima di allora e' ancora nel
-              mazzo, e la carta del trionfo non l'ha girata nessuno. */}
-          {!distribuendo && (
+          {/* Il monte compare a carte finite, e sparisce appena qualcuno
+              chiama: da li' quelle carte se le e' prese lui. Nel liscio
+              non chiama nessuno, e il riquadro resta. */}
+          {!distribuendo && !scopreIlMonte && chiamante === null && (
             <div className="compare">
               {conMonte ? (
                 <MonteInTavola
                   scoperta={scoperta}
                   coperte={session.monte.filter((carta) => carta.id !== scoperta?.id)}
-                  spiate={false}
+                  spiate={spia}
                 />
               ) : (
                 scoperta !== null && <TrionfoDelCartaro carta={scoperta} cartaro={session.dealer} />
@@ -191,7 +202,14 @@ export function DealingScreen({ session, onDecide }: Props): ReactElement {
         </div>
 
         <div className="tavolo-centro">
-          {distribuendo ? (
+          {scopreIlMonte ? (
+            <MonteScopertoInTavola
+              monte={session.monte}
+              trump={session.trump}
+              state={null}
+              preso={null}
+            />
+          ) : distribuendo ? (
             // Il mazzo in mezzo al tavolo, e da li' le carte che partono.
             <div className="mazzo">
               <span className="mazzo-dorso" style={{ backgroundImage: `url(${DORSO})` }} />
@@ -231,9 +249,13 @@ export function DealingScreen({ session, onDecide }: Props): ReactElement {
 
       <div className="zona-mano">
         <p className="riga-mano">
-          {distribuendo || session.umano !== null
-            ? 'la tua mano'
-            : `mano di ${nomeGiocatore(chiMostra)} — passa il telefono`}
+          {scopreIlMonte
+            ? session.umano !== null
+              ? 'la tua mano'
+              : `mano di ${nomeGiocatore(chiMostra)}`
+            : distribuendo || session.umano !== null
+              ? 'la tua mano'
+              : `mano di ${nomeGiocatore(chiMostra)} — passa il telefono`}
         </p>
         {/* Le carte si appoggiano dove staranno a mano finita: la misura la
             decidono quelle iniziali, quindi non balla mentre la mano cresce. */}
@@ -261,30 +283,30 @@ export function DealingScreen({ session, onDecide }: Props): ReactElement {
           chiude. Il posto pero' se lo prendono da subito, anche mentre non si
           vedono: cosi' la mano nasce dov'e' e non fa un salto proprio quando
           c'e' da guardarla. */}
-      {diTurno !== null && (
+      {diTurno !== null && !scopreIlMonte && (
         <div
           className={
             distribuendo ? 'chiamata-al-tavolo chiamata-in-attesa' : 'chiamata-al-tavolo compare'
           }
         >
-          <div className="riga-bottoni">
-            <button
-              type="button"
-              className="bottone-grande"
-              disabled={!tocca}
-              onClick={() => onDecide(diTurno, { tipo: 'chiama', chiamata: 'normale' })}
-            >
-              CHIAMA
-            </button>
-            <button
-              type="button"
-              className="bottone-grande bottone-secondario"
-              disabled={!tocca}
-              onClick={() => onDecide(diTurno, { tipo: 'passo' })}
-            >
-              PASSO
-            </button>
-          </div>
+          {(tocca || distribuendo) && diTurno !== null && (
+            <div className="riga-bottoni">
+              <button
+                type="button"
+                className="bottone-grande"
+                onClick={() => onDecide(diTurno, { tipo: 'chiama', chiamata: 'normale' })}
+              >
+                CHIAMA
+              </button>
+              <button
+                type="button"
+                className="bottone-grande bottone-secondario"
+                onClick={() => onDecide(diTurno, { tipo: 'passo' })}
+              >
+                PASSO
+              </button>
+            </div>
+          )}
 
           {/* Lo schermo e' di tutti: senza il nome non si sa chi ha parlato.
               Contro i bot invece parla sempre e solo chi sta qui davanti. */}
@@ -327,6 +349,25 @@ export function DealingScreen({ session, onDecide }: Props): ReactElement {
       )}
     </section>
   );
+}
+
+/**
+ * Chi sta facendo cosa, prima che si giochi. Quando tocca a chi guarda
+ * resta la stessa frase di sempre: chiami o passi.
+ */
+function statoPrimaDelGioco(session: Session, tocca: boolean, diTurno: number | null): string {
+  if (session.phase === 'distribuzione') return 'si distribuisce';
+  if (session.phase === 'monte') return 'il monte si scopre';
+  const chiamante = session.call.caller;
+  if (session.phase === 'discard' && chiamante !== null) {
+    return `${nomeGiocatore(chiamante)} scarta al monte`;
+  }
+  if (session.phase === 'friend' && chiamante !== null) {
+    return `${nomeGiocatore(chiamante)} sceglie l'amico`;
+  }
+  if (tocca) return 'chiami o passi';
+  if (diTurno !== null) return `${nomeGiocatore(diTurno)} sta decidendo`;
+  return 'si chiama';
 }
 
 /**

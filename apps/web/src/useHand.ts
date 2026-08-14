@@ -29,6 +29,7 @@ import {
   settleChiSeLaSenteScaduto,
   tableConfig,
   takeMonte,
+  totalPoints,
 } from '@mediatore/engine';
 import { scegliCarta, scegliScarti, vistaDaStato } from '@mediatore/bot';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -46,7 +47,7 @@ import { CARTA_DISTRIBUITA_MS, carteDaDistribuire } from './distribuzione';
 import { fissaNomiDelTavolo } from './labels';
 import type { Livello } from './livello';
 import { pescaNomi } from './nomi';
-import { ordineDiMano } from './ordine';
+import { ordinaCarte, ordineDiMano } from './ordine';
 import * as registro from './registro';
 import { cartaDelTrionfo } from './trionfo';
 import { uccide } from './uccisione';
@@ -64,6 +65,8 @@ export type Phase =
   | 'apertura'
   | 'friend'
   | 'play'
+  /** Il monte scoperto al centro del tavolo, prima del riepilogo. */
+  | 'monte'
   | 'end';
 
 export interface Session {
@@ -133,6 +136,12 @@ export interface TrickPause {
   cards: PlayedCard[];
   /** Le carte sono ancora ferme in tavola, oppure hanno gia' preso il volo. */
   raccolta: boolean;
+  /**
+   * Il monte raccolto come una base: stesse carte, stesso volo, verso chi
+   * ha vinto l'ultima presa. I quattro secondi da fermo stanno qui, non
+   * in un altro timer.
+   */
+  eIlMonte?: boolean;
 }
 
 /**
@@ -145,6 +154,42 @@ const CARTE_FERME_MS = 1500;
 
 /** Poi le carte volano verso chi ha vinto: va d accordo con la transizione CSS. */
 const RACCOLTA_MS = 600;
+
+/**
+ * Quanto resta il monte fermo e scoperto al centro del tavolo, prima di
+ * raccogliersi. Poi vola verso chi ha vinto l'ultima base, come ogni altra
+ * presa, e solo a volo finito si apre il riepilogo. I dieci secondi del
+ * conto alla rovescia partono li': questi quattro non li mangiano.
+ * Si tara solo da qui.
+ */
+export const SECONDI_DEL_MONTE = 4;
+
+/**
+ * C'e' un monte da scoprire: si guarda al tavolo. Senza — la variante amico,
+ * o qualsiasi smazzata che il monte non ce l'ha — si conta subito.
+ * A smazzata giocata si guarda quello rimasto in tavola dopo gli scarti;
+ * se non si e' giocato, quello distribuito.
+ */
+function dopoLaSmazzata(session: Session): Phase {
+  const carte = session.state?.monte ?? session.monte;
+  return carte.length > 0 ? 'monte' : 'end';
+}
+
+/**
+ * Il monte e' una base: un punto piu' i punti delle sue carte, a chi si e'
+ * fatto l'ultima presa. Stessa pausa delle altre, stesse carte in tavola.
+ */
+function pausaDelMonte(state: HandState): TrickPause | null {
+  const winner = state.completedTricks[state.completedTricks.length - 1]?.winner;
+  if (winner === undefined || state.monte.length === 0) return null;
+  return {
+    winner,
+    points: totalPoints(state.monte) + 1,
+    cards: ordinaCarte(state.monte, state.trump).map((card) => ({ player: winner, card })),
+    raccolta: false,
+    eIlMonte: true,
+  };
+}
 
 /**
  * Quanto dura il conteggio finale prima che la smazzata dopo parta da sola.
@@ -363,9 +408,12 @@ export function useHand(): UseHand {
   // in evidenza.
   useEffect(() => {
     if (pause === null || pause.raccolta) return undefined;
+    // Il monte sta fermo i suoi quattro secondi: le altre basi il tempo
+    // di guardarle. Poi, per tutte, parte la stessa raccolta.
+    const attesa = pause.eIlMonte === true ? SECONDI_DEL_MONTE * 1000 : CARTE_FERME_MS;
     const timer = setTimeout(() => {
       setPause((prev) => (prev === null ? null : { ...prev, raccolta: true }));
-    }, CARTE_FERME_MS);
+    }, attesa);
     return () => clearTimeout(timer);
   }, [pause]);
 
@@ -374,15 +422,24 @@ export function useHand(): UseHand {
   // colpo dell'ultima carta c'era gia' il suono di quella.
   useEffect(() => {
     if (pause === null || !pause.raccolta) return undefined;
-    // L'ultima base si porta via anche il monte, quando c'e': in quel caso il
-    // monte se lo prende tutto lui, che e' il rumore piu' grosso dei due.
-    const finita = session?.state?.finished === true;
-    suona(finita && (session?.monte.length ?? 0) > 0 ? 'monteRaccolto' : 'baseVinta');
+    // Il monte ha il suo rumore, le basi il loro: l'ultima presa non si
+    // porta piu' via il monte in un colpo solo, lo raccoglie dopo.
+    suona(pause.eIlMonte === true ? 'monteRaccolto' : 'baseVinta');
     const timer = setTimeout(() => {
-      setPause(null);
-      setSession((prev) =>
-        prev !== null && prev.state?.finished === true ? { ...prev, phase: 'end' } : prev,
-      );
+      if (pause.eIlMonte === true) {
+        setPause(null);
+        setSession((prev) =>
+          prev !== null && prev.phase === 'monte' ? { ...prev, phase: 'end' } : prev,
+        );
+        return;
+      }
+      const stato = session?.state;
+      const delMonte = stato != null && stato.finished ? pausaDelMonte(stato) : null;
+      setPause(delMonte);
+      setSession((prev) => {
+        if (prev === null || prev.state?.finished !== true) return prev;
+        return { ...prev, phase: dopoLaSmazzata(prev) };
+      });
     }, RACCOLTA_MS);
     return () => clearTimeout(timer);
   }, [pause]);
@@ -630,7 +687,7 @@ export function useHand(): UseHand {
       },
       null,
     );
-    setSession({ ...session, phase: 'end', scaduta: true });
+    setSession({ ...session, phase: dopoLaSmazzata(session), scaduta: true });
   }, [session]);
 
   const scegliAmico = useCallback(
@@ -751,6 +808,19 @@ export function useHand(): UseHand {
    * distingue: il resto della sessione — il posto da cui si guarda, per dirne
    * una — cambia senza rimettere in moto niente.
    */
+  // Senza un vincitore il monte non ha dove andare: sta fermo i quattro
+  // secondi e poi si conta. A smazzata giocata la raccolta lo porta via lei.
+  useEffect(() => {
+    if (session?.phase !== 'monte') return undefined;
+    if (session.state !== null && pausaDelMonte(session.state) !== null) return undefined;
+    const timer = setTimeout(() => {
+      setSession((prev) =>
+        prev !== null && prev.phase === 'monte' ? { ...prev, phase: 'end' } : prev,
+      );
+    }, SECONDI_DEL_MONTE * 1000);
+    return () => clearTimeout(timer);
+  }, [session?.phase, session?.seed]);
+
   useEffect(() => {
     if (session?.phase !== 'end') return undefined;
     setSecondiAllaRipartenza(SECONDI_PRIMA_DI_RIPARTIRE);

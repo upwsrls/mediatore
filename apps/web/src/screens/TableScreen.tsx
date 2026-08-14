@@ -1,22 +1,22 @@
 import type { Card as CartaEngine, HandState } from '@mediatore/engine';
-import { chiVedeIlMonte, legalPlaysFor } from '@mediatore/engine';
+import { chiVedeIlMonte, legalPlaysFor, totalPoints } from '@mediatore/engine';
 import type { CSSProperties, ReactElement } from 'react';
 import { useState } from 'react';
 import { Card } from '../components/Card';
+import { IntestazioneTavolo } from '../components/IntestazioneTavolo';
 import { PlayerName } from '../components/PlayerName';
-import { useAudio } from '../audio/useAudio';
 import { StatusLine } from '../components/StatusLine';
-import { SuitIcon } from '../components/SuitIcon';
+import { MonteScopertoInTavola, chiSiPrendeIlMonte } from '../components/MonteScopertoInTavola';
 import { MonteInTavola, PostoTavolo } from '../components/Tavolo';
 import { chiamataDi } from '../chiamate';
-import { SEMI, motivoNonGiocabile, nomeGiocatore, obbligoCorrente, puntiCorrenti } from '../labels';
+import { motivoNonGiocabile, nomeGiocatore, obbligoCorrente, puntiCorrenti } from '../labels';
 import { cartePerFila, eFilaUnica, postiDellaMano } from '../mano';
 import { ordinaCarte, secondoOrdine } from '../ordine';
 import type { Posizione } from '../posti';
 import { disposizione, inclinazione, sfalsoNelMazzetto } from '../posti';
 import type { Livello } from '../livello';
-import { conAiuti, livelloOpposto } from '../livello';
-import { cartaChiamata, schieramenti } from '../roles';
+import { conAiuti } from '../livello';
+import { basiDellaSquadra, cartaChiamata, schieramenti } from '../roles';
 import { chiTieneLaCarta } from '../spia';
 import { contaTrionfi } from '../trionfo';
 import type { Session, TrickPause } from '../useHand';
@@ -39,7 +39,10 @@ export function TableScreen({
   onLivello,
 }: Props): ReactElement {
   const [monteAperto, setMonteAperto] = useState(false);
-  const audio = useAudio();
+  const [basiAperte, setBasiAperte] = useState(false);
+  // A smazzata chiusa il monte si scopre al centro, il tempo di guardarlo:
+  // il mucchietto coperto in cima e il bottone per vederlo non servono piu'.
+  const scopreIlMonte = session.phase === 'monte';
 
   const { caller, friend } = schieramenti(state);
   const punti = puntiCorrenti(state);
@@ -76,8 +79,8 @@ export function TableScreen({
   // Chi puo' guardare il monte lo dice l'engine: nella colonna e nella chi se
   // la sente non lo vede nessuno, nemmeno chi ha dichiarato.
   const chiamata = chiamataDi(state);
-  // Una speciale senza monte non ha niente da mostrare: nella variante amico
-  // il bottone resta solo per la chiamata normale, che rivede le basi.
+  // Una speciale senza monte non ha niente da mostrare: il bottone del
+  // monte sparisce, le basi si guardano dall'altro.
   const nienteDaVedere = chiamata !== null && state.monte.length === 0;
   const vedeIlMonte =
     caller === null || nienteDaVedere
@@ -120,7 +123,18 @@ export function TableScreen({
       ? chiTieneLaCarta(state.hands, annunciata.id)
       : null;
 
-  const inTavola = pause !== null ? pause.cards : state.currentTrick.plays;
+  const preso = chiSiPrendeIlMonte(state);
+  const carteDelMonte = ordinaCarte(state.monte, state.trump).map((card) => ({
+    player: preso ?? 0,
+    card,
+  }));
+  const inTavola = scopreIlMonte
+    ? pause?.eIlMonte === true
+      ? pause.cards
+      : carteDelMonte
+    : pause !== null
+      ? pause.cards
+      : state.currentTrick.plays;
 
   // Ogni sedia del tavolo si monta allo stesso modo: qui dentro si guarda chi
   // ci sta seduto, fuori resta solo la pianta del tavolo.
@@ -153,52 +167,13 @@ export function TableScreen({
     <section className="schermata tavolo">
       <StatusLine state={state} aiuti={aiuti} />
 
-      <header className="intestazione">
-        <span>
-          trionfo{' '}
-          <strong className={SEMI[state.trump].classe}>
-            <SuitIcon suit={state.trump} size="riga" /> {state.trump}
-          </strong>
-        </span>
-        <span>
-          base {numeroBase} di {session.config.tricks}
-        </span>
-        {aiuti && <ContoDeiTrionfi state={state} seat={chiMostra} />}
-        {/* L'audio parte acceso e si spegne da qui. La scelta se la ricorda
-            l'impianto, che la ritrova anche al tavolo dopo. */}
-        <button
-          type="button"
-          className="spia"
-          aria-pressed={audio.acceso}
-          title={audio.acceso ? 'spegni i suoni del tavolo' : 'riaccendi i suoni del tavolo'}
-          onClick={() => audio.cambia(!audio.acceso)}
-        >
-          {audio.acceso ? 'audio' : 'muto'}
-        </button>
-        {/* Il livello si cambia al tavolo come si scoprono le carte: un
-            comando piccolo, in disparte, che dice a che livello si sta. */}
-        <button
-          type="button"
-          className="spia"
-          title={`passa a ${livelloOpposto(session.livello)}`}
-          onClick={() => onLivello(livelloOpposto(session.livello))}
-        >
-          {session.livello}
-        </button>
-        {/* Acceso, l'interruttore e' anche l'avviso: sta sempre in cima e si
-            legge da lontano, cosi' non ci si dimentica di star guardando le
-            carte degli altri. */}
-        {session.umano !== null && (
-          <button
-            type="button"
-            className={spia ? 'spia spia-accesa' : 'spia'}
-            aria-pressed={spia}
-            onClick={() => onCarteScoperte(!spia)}
-          >
-            {spia ? 'carte scoperte' : 'vedi le carte'}
-          </button>
-        )}
-      </header>
+      <IntestazioneTavolo
+        session={session}
+        basi={scopreIlMonte ? 'il monte' : `base ${numeroBase} di ${session.config.tricks}`}
+        extra={aiuti ? <ContoDeiTrionfi state={state} seat={chiMostra} /> : undefined}
+        onCarteScoperte={onCarteScoperte}
+        onLivello={onLivello}
+      />
 
       {/* Il liscio lo dice la riga di stato in cima, che e' dove si guarda per
           sapere come si sta giocando: qui sopra il tavolo era la stessa frase
@@ -210,7 +185,10 @@ export function TableScreen({
         </div>
 
         <div className="fila-alto">
-          {state.monte.length > 0 && (
+          {/* Appena qualcuno chiama, quelle carte se le e' prese lui: il
+              riquadro in cima farebbe credere che ci sia ancora un monte
+              da prendere. Nel liscio non se l'e' preso nessuno, e resta. */}
+          {!scopreIlMonte && caller === null && state.monte.length > 0 && (
             <MonteInTavola
               scoperta={scopertaInTavola}
               coperte={coperteInTavola}
@@ -227,7 +205,18 @@ export function TableScreen({
             centro e' alto `--centro` comunque, cosi' le carte non fanno saltare
             il tavolo quando arrivano. */}
         <div className="tavolo-centro">
-          {/* Le carte giocate si raccolgono verso il vincitore prima di sparire. */}
+          {scopreIlMonte && (pause === null || !pause.raccolta) && (
+            <MonteScopertoInTavola
+              monte={state.monte}
+              trump={state.trump}
+              state={state}
+              preso={preso}
+              nascondiCarte
+            />
+          )}
+          {/* Le carte giocate si raccolgono verso il vincitore prima di sparire.
+              Il monte usa la stessa raccolta: sta fermo in mezzo, poi si
+              stringe in un mazzetto e scivola verso chi ha vinto l'ultima base. */}
           <div
             className={
               pause === null || !pause.raccolta
@@ -235,15 +224,21 @@ export function TableScreen({
                 : `giocate giocate-raccolta raccolta-${posizioni[pause.winner] ?? 'basso'}`
             }
           >
-            {inTavola.map((giocata) => {
+            {inTavola.map((giocata, indice) => {
               const sfalso = sfalsoNelMazzetto(giocata.card.id);
+              const dalMonte = scopreIlMonte || pause?.eIlMonte === true;
               return (
                 <div
                   key={giocata.card.id}
                   className={[
                     'giocata',
-                    `giocata-da-${posizioni[giocata.player] ?? 'basso'}`,
-                    pause !== null && giocata.player === pause.winner ? 'giocata-vince' : '',
+                    dalMonte ? 'giocata-dal-monte' : `giocata-da-${posizioni[giocata.player] ?? 'basso'}`,
+                    pause !== null &&
+                    (dalMonte
+                      ? pause.raccolta && indice === inTavola.length - 1
+                      : giocata.player === pause.winner)
+                      ? 'giocata-vince'
+                      : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
@@ -252,6 +247,7 @@ export function TableScreen({
                       '--pendenza': `${inclinazione(giocata.card.id)}deg`,
                       '--sfalso-x': `${sfalso.x}px`,
                       '--sfalso-y': `${sfalso.y}px`,
+                      '--monte-x': `${scartoDelMonte(indice, inTavola.length)}px`,
                     } as CSSProperties
                   }
                 >
@@ -271,24 +267,48 @@ export function TableScreen({
 
         {/* L annuncio dura un attimo: si appoggia sopra il tavolo invece di
             aprirsi una riga tutta sua, che spingerebbe giu' la mano. */}
-        {pause !== null && (
+        {pause !== null && pause.eIlMonte !== true && (
           <div className="banner banner-base">
             base a <PlayerName seat={pause.winner} state={state} /> per {pause.points} punti
           </div>
         )}
       </div>
 
-      {monteMio && (
-        <div className="riga-bottoni">
-          <button
-            type="button"
-            className="bottone-piccolo"
-            disabled={!puoVedereMonte}
-            onClick={() => setMonteAperto(true)}
-          >
-            {friend === null ? 'Vedi il monte' : 'Vedi il monte e le basi'}
-          </button>
-          {noteMonte.length > 0 && <span className="nota nota-monte">{noteMonte.join(' · ')}</span>}
+      {!scopreIlMonte && (
+        <div className="riga-sguardi">
+          <div className="sguardo-monte">
+            {monteMio && (
+              <>
+                <button
+                  type="button"
+                  className="bottone-piccolo"
+                  disabled={!puoVedereMonte}
+                  onClick={() => {
+                    setBasiAperte(false);
+                    setMonteAperto(true);
+                  }}
+                >
+                  Monte
+                </button>
+                {noteMonte.length > 0 && (
+                  <span className="nota nota-monte">{noteMonte.join(' · ')}</span>
+                )}
+              </>
+            )}
+          </div>
+          <div className="sguardo-basi">
+            <button
+              type="button"
+              className="bottone-piccolo"
+              disabled={!baseChiusa}
+              onClick={() => {
+                setMonteAperto(false);
+                setBasiAperte(true);
+              }}
+            >
+              Basi
+            </button>
+          </div>
         </div>
       )}
 
@@ -297,7 +317,11 @@ export function TableScreen({
             da passare, si aspetta e basta. In hotseat invece si dice a chi
             tocca, perche' lo schermo cambia proprietario a ogni giocata. */}
         <p className="riga-mano">
-          {session.umano !== null ? (
+          {scopreIlMonte
+            ? session.umano !== null
+              ? 'la tua mano'
+              : `mano di ${nomeGiocatore(chiMostra)}`
+            : session.umano !== null ? (
             tocca ? (
               'la tua mano'
             ) : (
@@ -326,7 +350,7 @@ export function TableScreen({
           style={{ '--per-fila': perFila } as CSSProperties}
         >
           {posti.map(({ carta, riga, scarto }) => {
-            const giocabile = legaliIds.has(carta.id) && pause === null;
+            const giocabile = !scopreIlMonte && legaliIds.has(carta.id) && pause === null;
             return (
               <div
                 key={carta.id}
@@ -362,8 +386,20 @@ export function TableScreen({
       {monteAperto && caller !== null && (
         <ModaleMonte state={state} onChiudi={() => setMonteAperto(false)} />
       )}
+      {basiAperte && (
+        <ModaleBasi state={state} seat={chiMostra} onChiudi={() => setBasiAperte(false)} />
+      )}
     </section>
   );
+}
+
+/**
+ * Quanto scarta dal centro una carta del monte, in fila. Poche decine di
+ * pixel: abbastanza da leggerle tutte, poco abbastanza che cinque ci stiano
+ * in mezzo al tavolo. La raccolta le riporta poi tutte nello stesso punto.
+ */
+function scartoDelMonte(indice: number, quante: number): number {
+  return (indice - (quante - 1) / 2) * 28;
 }
 
 /**
@@ -413,45 +449,80 @@ interface ModaleProps {
 }
 
 function ModaleMonte({ state, onChiudi }: ModaleProps): ReactElement {
-  const { friend, conIlChiamante } = schieramenti(state);
-  const basi = state.completedTricks.filter((base) => conIlChiamante.includes(base.winner));
+  // Stesso conto dell'engine quando assegna il monte: i punti delle carte
+  // piu uno della base. Nella colonna e nella chi se la sente questa
+  // finestra non si apre: li' il monte non lo vede nessuno.
+  const puntiDelleCarte = totalPoints(state.monte);
+  const valore = puntiDelleCarte + 1;
+
+  return (
+    <div className="modale" role="dialog">
+      <div className="modale-contenuto">
+        <h3>{state.monte.length === 0 ? 'Monte' : `Monte: ${valore} punti`}</h3>
+        {state.monte.length === 0 ? (
+          <p className="nota">in questa variante non c e monte</p>
+        ) : (
+          <>
+            <div className="mano mano-larga">
+              {/* Anche il monte si guarda come una mano: stesso ordine, cosi' si
+                  capisce al volo cosa c'era sotto. */}
+              {ordinaCarte(state.monte, state.trump).map((carta) => (
+                <Card key={carta.id} card={carta} size="piccola" />
+              ))}
+            </div>
+            <p className="nota">
+              {valore}:{' '}
+              {puntiDelleCarte === 0
+                ? 'carte senza punti, piu 1 della base'
+                : `${puntiDelleCarte} di carte piu 1 della base`}
+            </p>
+          </>
+        )}
+
+        <button type="button" className="bottone-grande" onClick={onChiudi}>
+          Chiudi
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ModaleBasi({
+  state,
+  seat,
+  onChiudi,
+}: {
+  state: HandState;
+  seat: number;
+  onChiudi: () => void;
+}): ReactElement {
+  const basi = basiDellaSquadra(state, seat);
   const puntiBasi = basi.reduce((somma, base) => somma + base.points, 0);
 
   return (
     <div className="modale" role="dialog">
       <div className="modale-contenuto">
-        <h3>il monte</h3>
-        {state.monte.length === 0 ? (
-          <p className="nota">in questa variante non c e monte</p>
+        <h3>
+          Basi: {basi.length}, {puntiBasi} punti
+        </h3>
+        {basi.length === 0 ? (
+          <p className="nota">nessuna base ancora</p>
         ) : (
-          <div className="mano mano-larga">
-            {/* Anche il monte si guarda come una mano: stesso ordine, cosi' si
-                capisce al volo cosa c'era sotto. */}
-            {ordinaCarte(state.monte, state.trump).map((carta) => (
-              <Card key={carta.id} card={carta} size="piccola" />
+          <div className="basi">
+            {basi.map((base, indice) => (
+              <div key={indice} className="base">
+                <span className="giocata-nome">
+                  <PlayerName seat={base.winner} state={state} compatto /> · {base.points}
+                </span>
+                <div className="mano">
+                  {base.cards.map((giocata) => (
+                    <Card key={giocata.card.id} card={giocata.card} size="piccola" />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
-
-        <h3>
-          basi {friend === null ? 'del chiamante' : 'della coppia'}: {basi.length}, {puntiBasi}{' '}
-          punti
-        </h3>
-        <div className="basi">
-          {basi.map((base, indice) => (
-            <div key={indice} className="base">
-              <span className="giocata-nome">
-                <PlayerName seat={base.winner} state={state} compatto /> · {base.points}
-              </span>
-              <div className="mano">
-                {base.cards.map((giocata) => (
-                  <Card key={giocata.card.id} card={giocata.card} size="piccola" />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
         <button type="button" className="bottone-grande" onClick={onChiudi}>
           Chiudi
         </button>

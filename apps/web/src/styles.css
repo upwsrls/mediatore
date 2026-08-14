@@ -333,6 +333,34 @@ legend {
   font-size: 11px;
 }
 
+/*
+ * Due sguardi sulla stessa riga: il monte resta a sinistra, dove e' sempre
+ * stato, le basi stanno a destra. La colonna di sinistra c'e' anche vuota,
+ * cosi' chi non ha un monte da vedere trova Basi nello stesso posto.
+ */
+.riga-sguardi {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.sguardo-monte {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sguardo-basi {
+  justify-self: end;
+}
+
+.sguardo-basi .bottone-piccolo {
+  white-space: nowrap;
+}
+
 /* Il quaderno delle partite: sta in fondo e non deve rubare l'occhio. */
 .nota-registro {
   display: flex;
@@ -1192,6 +1220,84 @@ button.carta:active {
   color: var(--oro-tenue);
 }
 
+/*
+ * Il monte scoperto a fine smazzata: sta al centro del tavolo, al posto
+ * delle giocate, il tempo di guardarlo. Le carte sono piu' piccole di una
+ * giocata e si accavallano quel tanto che cinque ci stanno in una riga
+ * anche sul telefono stretto; il testo sotto dice chi se l'e' preso e
+ * quanto valeva. Non deve far crescere il tavolo ne' farlo scorrere.
+ */
+.monte-al-centro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 2px 4px;
+  text-align: center;
+  z-index: 3;
+}
+
+.monte-al-centro .etichetta {
+  font-size: 10px;
+}
+
+.monte-al-centro p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.25;
+  max-width: 100%;
+}
+
+.monte-al-centro .nota {
+  font-size: 11px;
+}
+
+.monte-al-centro .mano {
+  justify-content: center;
+  flex-wrap: nowrap;
+  overflow: visible;
+  padding: 0;
+  gap: 0;
+}
+
+.monte-al-centro .carta {
+  width: 38px;
+  border-width: 1px;
+  border-radius: 5px;
+}
+
+.monte-al-centro .mano > * + * {
+  margin-left: -10px;
+}
+
+/*
+ * A smazzata giocata le carte del monte stanno gia' in tavola come una base:
+ * qui restano solo le due righe, una sopra e una sotto, senza coprirle.
+ */
+.monte-al-centro-solo-testo {
+  justify-content: space-between;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.monte-didascalia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+/*
+ * Senza i bottoni della chiamata il centro puo' riprendere l'altezza del
+ * tavolo di gioco: le carte del monte e le due righe sotto ci stanno.
+ */
+.tavolo-col-monte .tavolo-scena {
+  --centro: clamp(112px, 17vh, 180px);
+}
+
 /* Le basi si rivedono in fila, con il nome sotto ogni carta. */
 .base-rivista {
   display: flex;
@@ -1265,6 +1371,16 @@ button.carta:active {
 .giocata-da-destra-2 {
   left: 86%;
   top: 30%;
+}
+
+/*
+ * Il monte scoperto parte gia' in mezzo al tavolo, in fila. La raccolta
+ * e' la stessa delle basi: left/top lo stringono in un mazzetto, il
+ * transform lo porta via. Qui si decide solo da dove partono.
+ */
+.giocata-dal-monte {
+  left: calc(50% + var(--monte-x, 0px));
+  top: 50%;
 }
 
 /*
@@ -1452,6 +1568,10 @@ button.carta:active {
     gap: 4px;
   }
 
+  .riga-sguardi {
+    gap: 6px;
+  }
+
   .tavolo .riga-mano {
     font-size: 13px;
   }
@@ -1481,6 +1601,26 @@ button.carta:active {
   .monte-conteggio,
   .riquadro-parte .riquadro-etichetta {
     font-size: 9px;
+  }
+
+  .monte-al-centro {
+    gap: 2px;
+  }
+
+  .monte-al-centro .carta {
+    width: 32px;
+  }
+
+  .monte-al-centro .mano > * + * {
+    margin-left: -8px;
+  }
+
+  .monte-al-centro p {
+    font-size: 11px;
+  }
+
+  .monte-al-centro .nota {
+    font-size: 10px;
   }
 
   /* La chiamata si stringe come il resto: il tavolo non deve scorrere
