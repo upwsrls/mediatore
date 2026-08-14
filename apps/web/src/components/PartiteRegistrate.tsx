@@ -18,10 +18,11 @@ export function PartiteRegistrate(): ReactElement | null {
   if (chiedeConferma) {
     return (
       <p className="nota nota-registro">
+        {/* Corta di proposito: la domanda e i due bottoni devono stare su una
+            riga sola, perche' sotto il setup non c'e' un pixel da regalare e
+            una riga in piu' qui manderebbe la schermata a scorrere. */}
         <span>
-          {quante === 1
-            ? 'butto via la partita registrata?'
-            : `butto via tutte e ${quante} le partite registrate?`}
+          {quante === 1 ? 'butto via la partita?' : `butto via le ${quante} partite?`}
         </span>
         <span className="registro-bottoni">
           <button

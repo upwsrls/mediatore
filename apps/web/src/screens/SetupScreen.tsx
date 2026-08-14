@@ -47,7 +47,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
   }
 
   return (
-    <section className="schermata">
+    <section className="schermata schermata-setup">
       <h1>Mediatore Barlettano</h1>
       <p className="sottotitolo">
         {controBot

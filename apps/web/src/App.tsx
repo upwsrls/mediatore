@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { useAudio } from './audio/useAudio';
+import { useInCima } from './inCima';
 import { DealingScreen } from './screens/DealingScreen';
 import { DiscardScreen } from './screens/DiscardScreen';
 import { EndScreen } from './screens/EndScreen';
@@ -34,6 +35,10 @@ export function App(): ReactElement {
     (session.phase === 'distribuzione' ||
       session.phase === 'call' ||
       (decideUnBot && (session.phase === 'discard' || session.phase === 'friend')));
+
+  // Cambiando scena la pagina torna in cima: la distribuzione, la chiamata e
+  // l'attesa sono la stessa scena, e li' non si tocca niente.
+  useInCima(session === null ? 'setup' : alTavolo ? 'tavolo' : session.phase);
 
   return (
     <main className="app">

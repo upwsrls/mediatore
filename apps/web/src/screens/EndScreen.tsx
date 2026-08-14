@@ -14,6 +14,7 @@ import {
   costo,
   spiegazioniSupplementi,
 } from '../chiamate';
+import { useInCima } from '../inCima';
 import { nomeGiocatore } from '../labels';
 import { ordinaCarte } from '../ordine';
 import { schieramenti } from '../roles';
@@ -54,6 +55,10 @@ export function EndScreen({
   onCambiaPuntoDiVista,
 }: Props): ReactElement {
   const [rivedi, setRivedi] = useState(false);
+  // Le basi da rivedere sono un'altra scena, e si guardano dalla prima riga:
+  // aprirle a meta' pagina, dove si era arrivati leggendo il conteggio, sarebbe
+  // come aprire un quaderno a caso.
+  useInCima(rivedi ? 'rivedi' : 'conteggio');
 
   if (state === null) {
     return (
@@ -85,7 +90,7 @@ export function EndScreen({
   }
 
   return (
-    <section className="schermata">
+    <section className="schermata schermata-conteggio">
       <StatusLine state={state} />
       <h2>fine smazzata</h2>
 
@@ -395,7 +400,7 @@ function FineScaduta({
   const settlement = settleChiSeLaSenteScaduto(session.config, caller);
 
   return (
-    <section className="schermata">
+    <section className="schermata schermata-conteggio">
       <div className="riga-stato">
         {nomeGiocatore(caller)} ha detto CHI SE LA SENTE — non se l e sentita nessuno
       </div>

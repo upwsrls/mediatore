@@ -86,7 +86,8 @@ export function DealingScreen({ session, onDecide }: Props): ReactElement {
   // le ha date, e il giro del tavolo le consegna in quello stesso ordine.
   const arrivate = distribuendo ? tutte.slice(0, quante(chiMostra)) : tutte;
   const mano = ordinaCarte(arrivate, distribuendo ? null : session.trump);
-  const posti = postiDellaMano(mano, session.config.handSize);
+  const perFila = cartePerFila(session.config.handSize);
+  const posti = postiDellaMano(mano, perFila, session.config.handSize);
 
   // L'ultima carta uscita dal mazzo e' quella che si vede volare.
   const inVolo =
@@ -236,10 +237,7 @@ export function DealingScreen({ session, onDecide }: Props): ReactElement {
         </p>
         {/* Le carte si appoggiano dove staranno a mano finita: la misura la
             decidono quelle iniziali, quindi non balla mentre la mano cresce. */}
-        <div
-          className="mano mano-a-file"
-          style={{ '--per-fila': cartePerFila(session.config.handSize) } as CSSProperties}
-        >
+        <div className="mano mano-a-file" style={{ '--per-fila': perFila } as CSSProperties}>
           {posti.map(({ carta, riga, scarto }) => (
             <div
               key={carta.id}

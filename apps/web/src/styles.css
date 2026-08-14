@@ -14,6 +14,34 @@
   box-sizing: border-box;
 }
 
+/*
+ * La finestra e' alta quanto lo schermo e la pagina non scorre. Setup,
+ * distribuzione, chiamata e tavolo stanno li' dentro: se un giorno crescono
+ * troppo, il difetto si vede come contenuto tagliato. Il riepilogo e' l'unica
+ * eccezione, e scorre nella sua area. 100dvh e' l'altezza vera del telefono;
+ * 100vh e' il ripiego.
+ */
+html {
+  height: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/*
+ * Fisso al vetro della finestra: overflow:hidden da solo non basta, perche'
+ * se il contenuto e' piu' alto lo scrollHeight resta e window.scrollTo
+ * muove ancora la pagina. Cosi' la smazzata nuova non puo' aprirsi a meta'.
+ */
+body,
+#root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
   background: var(--panno);
@@ -27,9 +55,11 @@ body {
   max-width: 420px;
   margin: 0 auto;
   padding: 12px 12px calc(24px + env(safe-area-inset-bottom));
-  min-height: 100vh;
-  /* Colonna alta quanto lo schermo: serve al tavolo, che deve prendersi tutto
-     lo spazio che avanza invece di lasciare verde vuoto sotto le carte. */
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  /* Colonna alta quanto lo schermo: il tavolo si prende lo spazio che avanza
+     invece di lasciare verde vuoto sotto le carte. */
   display: flex;
   flex-direction: column;
 }
@@ -53,6 +83,30 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/*
+ * Solo il riepilogo scorre, e solo su e giu': ci sta piu' di quanto un
+ * telefono tenga in un colpo d'occhio. Lo scorrimento e' qui dentro, non
+ * sulla pagina, cosi' il tavolo nuovo nasce in cima. overflow-y: auto da
+ * solo trasforma overflow-x in auto, e un margine di troppo apre lo
+ * scorrimento laterale. La riga di stato ha -12px ai lati per arrivare al
+ * bordo dell'app: e' lei che sforava, non il monte ne' le quote. Il testo
+ * ci sta; si taglia solo quel risvolto.
+ */
+.schermata-conteggio {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Senza quei -12px la riga sta larga quanto il resto, e non c'e' piu'
+   niente da scorrere di lato. Sul tavolo il risvolto resta: li' non si scorre. */
+.schermata-conteggio .riga-stato {
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .sottotitolo,
@@ -214,8 +268,13 @@ legend {
 /*
  * La mano al tavolo sta su due file e non scorre mai. La larghezza delle carte
  * esce da quante ne deve reggere una fila, che si decide a inizio smazzata:
- * le carte non cambiano misura mentre la mano si svuota. Il minimo tiene la
- * carta riconoscibile, il massimo evita che in sette diventino cartelloni.
+ * le carte non cambiano misura mentre la mano si svuota, nemmeno quando le
+ * ultime si mettono tutte in fila. Il minimo tiene la carta riconoscibile, il
+ * massimo evita che in sette diventino cartelloni.
+ *
+ * L'altezza e' sempre quella delle due file, anche quando la seconda si
+ * svuota: se la mano si accorciasse, il tavolo qui sopra si allargherebbe a
+ * meta' smazzata, e il posto delle carte cambierebbe mentre si sta scegliendo.
  */
 .mano-a-file {
   --gap-carte: 6px;
@@ -247,9 +306,20 @@ legend {
   left: 50%;
   transform: translate(
     calc(-50% + var(--scarto) * (var(--larghezza-carta) + var(--gap-carte))),
-    calc(var(--riga) * (var(--alt-carta) + var(--gap-carte)))
+    calc((var(--riga) + var(--fila-appesa, 0)) * (var(--alt-carta) + var(--gap-carte)))
   );
   transition: transform 220ms ease;
+}
+
+/*
+ * Poche carte, quelle che ci stanno tutte in una fila: la fila sola si appende
+ * a mezza fila dentro la fascia delle due. Cosi' l'altezza liberata non resta
+ * tutta sotto le carte come un buco, e le carte ci arrivano con la stessa
+ * transizione con cui si ricompattano dopo ogni giocata: si vede il movimento,
+ * non lo scatto.
+ */
+.mano-a-fila-unica {
+  --fila-appesa: 0.5;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -731,7 +801,8 @@ button.carta:active {
 /*
  * A conteggio finito il tavolo riparte da solo: il numero che scende e' la
  * cosa piu' importante della schermata, e si legge da lontano. Le cifre a
- * larghezza fissa evitano che la riga si muova passando da 10 a 9.
+ * larghezza fissa evitano che la riga si muova passando da 10 a 9. Sta nel
+ * flusso, sopra i bottoni, e scorre con il resto del riepilogo.
  */
 .conto-alla-rovescia {
   display: flex;
@@ -782,16 +853,9 @@ button.carta:active {
  * ancorata in fondo e il tavolo si prende tutto quello che resta. Il centro e'
  * il pezzo elastico, quindi su un telefono alto diventa generoso da solo.
  */
-/* Il tavolo e' l unica schermata che deve stare tutta nello schermo: qui
-   l altezza e' esatta, cosi' il tavolo si allarga e si stringe da solo. */
-.app:has(.tavolo) {
-  height: 100vh;
-  height: 100dvh;
-  min-height: 0;
-}
-
 .tavolo {
   flex: 1;
+  min-height: 0;
 }
 
 .tavolo .tavolo-scena {
@@ -1446,6 +1510,37 @@ button.carta:active {
   }
 }
 
+/*
+ * Anche il setup deve stare nello schermo: e' la prima cosa che si vede, e una
+ * schermata che scorre fa cercare il bottone. Da quando ci sono il livello e la
+ * riga del registro, per starci ci vogliono una settantina di pixel: si
+ * stringono l'aria fra i riquadri e il titolo, non le cose da premere. La
+ * soglia e' piu' alta di quella del tavolo perche' a spaziatura piena il setup
+ * chiede 736px, e fra i 731 e i 735 resterebbe fuori una striscia.
+ */
+@media (max-height: 760px) {
+  .schermata-setup {
+    gap: 6px;
+  }
+
+  .schermata-setup h1 {
+    font-size: 23px;
+    margin: 2px 0 0;
+  }
+
+  .schermata-setup fieldset {
+    padding: 8px;
+  }
+
+  .schermata-setup .scelta {
+    min-height: 42px;
+  }
+
+  .schermata-setup .interruttore {
+    padding: 8px 12px;
+  }
+}
+
 .zona-mano {
   display: flex;
   flex-direction: column;
@@ -1495,10 +1590,6 @@ button.carta:active {
   justify-content: space-between;
 }
 
-.banner-liscio {
-  background: #2b3b52;
-}
-
 .banner-base {
   background: #1f6f43;
   position: absolute;
@@ -1526,8 +1617,14 @@ button.carta:active {
   align-items: center;
 }
 
+/*
+ * Alto quanto gli serve. Il `flex: 1 1 140px` che aveva prima e' una misura di
+ * larghezza, e nelle schermate in colonna diventava altezza: il bottone si
+ * gonfiava a 140px, quasi tre volte il suo, e da solo mandava il setup fuori
+ * dallo schermo. In riga la larghezza da spartire gliela ridanno i bottoni.
+ */
 .bottone-grande {
-  flex: 1 1 140px;
+  flex: 0 0 auto;
   min-height: 52px;
   border: none;
   border-radius: 10px;
@@ -1536,6 +1633,12 @@ button.carta:active {
   font-size: 17px;
   font-weight: 700;
   cursor: pointer;
+}
+
+/* In riga i bottoni si spartiscono la larghezza, e 140px e' quanto ne chiede
+   ognuno prima di accettare di stare a capo. */
+.riga-bottoni .bottone-grande {
+  flex: 1 1 140px;
 }
 
 .bottone-secondario {

@@ -10,7 +10,7 @@ import { SuitIcon } from '../components/SuitIcon';
 import { MonteInTavola, PostoTavolo } from '../components/Tavolo';
 import { chiamataDi } from '../chiamate';
 import { SEMI, motivoNonGiocabile, nomeGiocatore, obbligoCorrente, puntiCorrenti } from '../labels';
-import { cartePerFila, postiDellaMano } from '../mano';
+import { cartePerFila, eFilaUnica, postiDellaMano } from '../mano';
 import { ordinaCarte, secondoOrdine } from '../ordine';
 import type { Posizione } from '../posti';
 import { disposizione, inclinazione, sfalsoNelMazzetto } from '../posti';
@@ -65,7 +65,10 @@ export function TableScreen({
   // giocate spariscono e le altre si ricompattano, senza riordinarsi.
   const ordine = session.ordine[chiMostra] ?? [];
   const mano = secondoOrdine(state.hands[chiMostra] ?? [], ordine);
-  const posti = postiDellaMano(mano);
+  // Le carte per fila si fissano sulle carte di partenza: da loro esce la
+  // larghezza della carta, e fin dove le rimaste ci stanno su una fila sola.
+  const perFila = cartePerFila(ordine.length);
+  const posti = postiDellaMano(mano, perFila);
   const legali = tocca ? legalPlaysFor(state, chiMostra) : [];
   const legaliIds = new Set(legali.map((carta) => carta.id));
   const obbligo = tocca ? obbligoCorrente(mano, legali, state) : null;
@@ -197,10 +200,9 @@ export function TableScreen({
         )}
       </header>
 
-      {caller === null && (
-        <div className="banner banner-liscio">LISCIO — perde chi fa piu punti</div>
-      )}
-
+      {/* Il liscio lo dice la riga di stato in cima, che e' dove si guarda per
+          sapere come si sta giocando: qui sopra il tavolo era la stessa frase
+          due volte, e rubava una striscia di altezza alle carte. */}
       <div className={spia ? 'tavolo-scena tavolo-spiato' : 'tavolo-scena'}>
         <div className="lato lato-sinistro">
           {sedia('sinistra-2')}
@@ -311,12 +313,17 @@ export function TableScreen({
             </>
           )}
         </p>
-        {/* Due file sempre: la larghezza delle carte la decide il numero di
-            carte iniziali, quindi non balla mentre la mano si svuota. */}
+        {/* Due file finche' le carte sono tante, una sola da quando ci stanno
+            tutte in fila. La larghezza delle carte la decide il numero di carte
+            iniziali, quindi non balla mentre la mano si svuota. */}
         <div
-          className="mano mano-a-file"
+          className={
+            eFilaUnica(mano.length, perFila)
+              ? 'mano mano-a-file mano-a-fila-unica'
+              : 'mano mano-a-file'
+          }
           // La misura della carta nasce dalle carte iniziali e non cambia piu'.
-          style={{ '--per-fila': cartePerFila(ordine.length) } as CSSProperties}
+          style={{ '--per-fila': perFila } as CSSProperties}
         >
           {posti.map(({ carta, riga, scarto }) => {
             const giocabile = legaliIds.has(carta.id) && pause === null;
