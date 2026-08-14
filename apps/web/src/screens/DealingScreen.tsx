@@ -10,7 +10,7 @@ import { DORSO } from '../carte/immagini';
 import { NOMI_CHIAMATA, SPECIALI, costo } from '../chiamate';
 import { CARTA_DISTRIBUITA_MS, chiRiceve, quanteNeHa } from '../distribuzione';
 import { nomeGiocatore } from '../labels';
-import type { Livello } from '../livello';
+import { conAiuti, type Livello } from '../livello';
 import { cartePerFila, postiDellaMano } from '../mano';
 import { ordinaCarte } from '../ordine';
 import type { Posizione } from '../posti';
@@ -352,9 +352,11 @@ export function DealingScreen({
             ))}
           </div>
 
-          <p className="nota nota-dichiarazioni">
-            si dichiarano anche fuori turno, e la prima blocca le altre
-          </p>
+          {conAiuti(session.livello) && (
+            <p className="nota nota-dichiarazioni">
+              si dichiarano anche fuori turno, e la prima blocca le altre
+            </p>
+          )}
         </div>
       )}
     </section>

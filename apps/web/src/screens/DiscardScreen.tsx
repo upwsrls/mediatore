@@ -6,6 +6,7 @@ import { useAudio } from '../audio/useAudio';
 import { Card } from '../components/Card';
 import { nomeGiocatore } from '../labels';
 import { ordinaCarte } from '../ordine';
+import { conAiuti } from '../livello';
 import type { Session } from '../useHand';
 
 interface Props {
@@ -40,7 +41,9 @@ export function DiscardScreen({ session, onConferma }: Props): ReactElement {
   return (
     <section className="schermata">
       <h2>{nomeGiocatore(caller)} prende il monte</h2>
-      <p className="nota">le carte con il bordo chiaro arrivano dal monte</p>
+      {conAiuti(session.livello) && (
+        <p className="nota">le carte con il bordo chiaro arrivano dal monte</p>
+      )}
 
       <div className="mano mano-larga">
         {allargata.map((carta) => (

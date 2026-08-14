@@ -2,10 +2,12 @@
  * Il livello del tavolo. Non e' una difficolta' — le regole, le carte e i bot
  * sono gli stessi — sono gli aiuti che il tavolo tiene a schermo:
  *
- * principiante: i punti di ognuno che salgono base dopo base, e il conto dei
- *   trionfi usciti, quello che al tavolo si tiene a mente;
+ * principiante: i punti di ognuno che salgono base dopo base, il conto dei
+ *   trionfi usciti, e le spiegazioni di servizio — obbligo, note del monte,
+ *   come si dichiara — quello che al bar si tiene a mente;
  * esperto: niente. I punti si contano da soli e si vedono alla fine, come al
- *   bar, e i trionfi li conta chi gioca.
+ *   bar, e i trionfi li conta chi gioca. Il tavolo dice solo cosa sta
+ *   succedendo, non come si gioca.
  *
  * Col server sara' una scelta del tavolo, fissata prima di distribuire: per
  * ora si cambia anche a smazzata avviata, che serve a provare.

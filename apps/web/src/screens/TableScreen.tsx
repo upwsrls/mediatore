@@ -52,8 +52,8 @@ export function TableScreen({
   const punti = puntiCorrenti(state);
   const numeroBase = Math.min(state.completedTricks.length + 1, session.config.tricks);
 
-  // Gli aiuti del principiante: i punti di tutti a vista e il conto dei
-  // trionfi. Da esperto il tavolo tace e i conti li tiene chi gioca.
+  // Gli aiuti del principiante: i punti di tutti a vista, il conto dei
+  // trionfi, e le spiegazioni di servizio. Da esperto il tavolo tace.
   const aiuti = conAiuti(session.livello);
 
   // I posti si fissano a inizio smazzata e non cambiano piu': in basso resta
@@ -78,7 +78,7 @@ export function TableScreen({
   const posti = postiDellaMano(mano, perFila);
   const legali = tocca ? legalPlaysFor(state, chiMostra) : [];
   const legaliIds = new Set(legali.map((carta) => carta.id));
-  const obbligo = tocca ? obbligoCorrente(mano, legali, state) : null;
+  const obbligo = aiuti && tocca ? obbligoCorrente(mano, legali, state) : null;
   const puoGiocare = tocca && !scopreIlMonte && pause === null;
 
   // Due tocchi: la carta resta alzata finche' non si conferma o non si
@@ -177,11 +177,14 @@ export function TableScreen({
   };
 
   // Due avvisi brevi su una riga sola: il tavolo ha bisogno dell'altezza,
-  // e due frasi intere la spezzavano. Qui restano minute, accanto al bottone.
-  const noteMonte = [
-    chiamata === 'sola' ? 'niente scambio' : null,
-    puoVedereMonte ? null : 'a base chiusa',
-  ].filter((nota): nota is string => nota !== null);
+  // e due frasi intere la spezzavano. Da esperto tacciono: al bar quelle
+  // cose le sai.
+  const noteMonte = aiuti
+    ? [
+        chiamata === 'sola' ? 'niente scambio' : null,
+        puoVedereMonte ? null : 'a base chiusa',
+      ].filter((nota): nota is string => nota !== null)
+    : [];
 
   function alzaOGioca(scelta: CartaEngine): void {
     const tocco = toccoDellaMano(sollevata, scelta.id);
@@ -238,6 +241,7 @@ export function TableScreen({
               state={state}
               preso={preso}
               nascondiCarte
+              aiuti={aiuti}
             />
           )}
           {/* Le carte giocate si raccolgono verso il vincitore prima di sparire.
@@ -375,7 +379,7 @@ export function TableScreen({
                   // Mentre pensa un altro non c'e' nessun motivo da spiegare:
                   // non e' la carta a essere sbagliata, e' il turno.
                   motivo={
-                    !tocca || legaliIds.has(carta.id)
+                    !aiuti || !tocca || legaliIds.has(carta.id)
                       ? undefined
                       : motivoNonGiocabile(carta, legali, state)
                   }
@@ -385,18 +389,20 @@ export function TableScreen({
             );
           })}
         </div>
-        {/* La riga dell'obbligo c'e' sempre, anche quando non ha niente da
-            dire: se comparisse solo al bisogno quei quindici pixel li cederebbe
-            il centro del tavolo, e il tavolo si accorcerebbe proprio mentre si
-            guardano le carte per scegliere. Vuota resta invisibile, e allora
-            non la legge nemmeno lo schermo che parla. */}
-        <p className={obbligo === null ? 'obbligo obbligo-in-attesa' : 'obbligo'}>
-          {obbligo ?? '\u00a0'}
-        </p>
+        {/* Da principiante la riga c'e' sempre, anche vuota: se comparisse
+            solo al bisogno quei quindici pixel li cederebbe il centro, e il
+            tavolo si accorcerebbe mentre si scelgono le carte. Da esperto
+            non c'e': al bar nessuno ti dice cosa devi giocare, e lo spazio
+            torna al tavolo. */}
+        {aiuti && (
+          <p className={obbligo === null ? 'obbligo obbligo-in-attesa' : 'obbligo'}>
+            {obbligo ?? '\u00a0'}
+          </p>
+        )}
       </div>
 
       {monteAperto && caller !== null && (
-        <ModaleMonte state={state} onChiudi={() => setMonteAperto(false)} />
+        <ModaleMonte state={state} aiuti={aiuti} onChiudi={() => setMonteAperto(false)} />
       )}
       {basiAperte && (
         <ModaleBasi state={state} seat={chiMostra} onChiudi={() => setBasiAperte(false)} />
@@ -457,10 +463,11 @@ function CartaChiamata({
 
 interface ModaleProps {
   state: HandState;
+  aiuti: boolean;
   onChiudi: () => void;
 }
 
-function ModaleMonte({ state, onChiudi }: ModaleProps): ReactElement {
+function ModaleMonte({ state, aiuti, onChiudi }: ModaleProps): ReactElement {
   // Stesso conto dell'engine quando assegna il monte: i punti delle carte
   // piu uno della base. Nella colonna e nella chi se la sente questa
   // finestra non si apre: li' il monte non lo vede nessuno.
@@ -482,12 +489,14 @@ function ModaleMonte({ state, onChiudi }: ModaleProps): ReactElement {
                 <Card key={carta.id} card={carta} size="piccola" />
               ))}
             </div>
-            <p className="nota">
-              {valore}:{' '}
-              {puntiDelleCarte === 0
-                ? 'carte senza punti, piu 1 della base'
-                : `${puntiDelleCarte} di carte piu 1 della base`}
-            </p>
+            {aiuti && (
+              <p className="nota">
+                {valore}:{' '}
+                {puntiDelleCarte === 0
+                  ? 'carte senza punti, piu 1 della base'
+                  : `${puntiDelleCarte} di carte piu 1 della base`}
+              </p>
+            )}
           </>
         )}
 

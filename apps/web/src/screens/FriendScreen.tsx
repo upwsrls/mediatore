@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import { Card } from '../components/Card';
 import { nomeGiocatore } from '../labels';
 import { ordinaCarte } from '../ordine';
+import { conAiuti } from '../livello';
 import type { Session } from '../useHand';
 
 interface Props {
@@ -23,10 +24,12 @@ export function FriendScreen({ session, onScegli }: Props): ReactElement {
   return (
     <section className="schermata">
       <h2>{nomeGiocatore(caller)} chiama l amico</h2>
-      <p className="nota">
-        chi ha in mano la carta scelta diventa l alleato, ma nessuno lo sapra fino a quando
-        quella carta non viene giocata
-      </p>
+      {conAiuti(session.livello) && (
+        <p className="nota">
+          chi ha in mano la carta scelta diventa l alleato, ma nessuno lo sapra fino a quando
+          quella carta non viene giocata
+        </p>
+      )}
 
       <div className="mano mano-larga">
         {chiamabili.map((carta) => (

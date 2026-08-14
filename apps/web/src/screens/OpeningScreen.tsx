@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { PlayerName } from '../components/PlayerName';
 import { costo, quantoVale } from '../chiamate';
 import { nomeGiocatore } from '../labels';
+import { conAiuti } from '../livello';
 import type { Session } from '../useHand';
 
 interface Props {
@@ -27,10 +28,12 @@ export function OpeningScreen({ session, onApre, onNessuno }: Props): ReactEleme
       </div>
 
       <h2>chi se la sente di aprire?</h2>
-      <p className="nota">
-        chi apre gioca la prima carta ma resta un avversario, alleato degli altri contro{' '}
-        <PlayerName seat={caller} state={null} />
-      </p>
+      {conAiuti(session.livello) && (
+        <p className="nota">
+          chi apre gioca la prima carta ma resta un avversario, alleato degli altri contro{' '}
+          <PlayerName seat={caller} state={null} />
+        </p>
+      )}
 
       <ul className="posti">
         {avversari.map((seat) => (

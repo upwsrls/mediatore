@@ -18,6 +18,7 @@ export function MonteScopertoInTavola({
   state,
   preso,
   nascondiCarte = false,
+  aiuti = true,
 }: {
   monte: readonly CartaEngine[];
   trump: Suit;
@@ -30,6 +31,8 @@ export function MonteScopertoInTavola({
    * qui resta solo chi se l'e' preso e quanto valeva.
    */
   nascondiCarte?: boolean;
+  /** Il conto spezzato — carte piu' la base — e' un aiuto da principiante. */
+  aiuti?: boolean;
 }): ReactElement | null {
   if (monte.length === 0) return null;
 
@@ -47,10 +50,14 @@ export function MonteScopertoInTavola({
       </p>
       {preso !== null && (
         <p className="nota">
-          valeva {puntiDelleCarte + 1}:{' '}
-          {puntiDelleCarte === 0
-            ? 'carte senza punti, piu 1 della base'
-            : `${puntiDelleCarte} di carte piu 1 della base`}
+          valeva {puntiDelleCarte + 1}
+          {aiuti
+            ? `: ${
+                puntiDelleCarte === 0
+                  ? 'carte senza punti, piu 1 della base'
+                  : `${puntiDelleCarte} di carte piu 1 della base`
+              }`
+            : ''}
         </p>
       )}
     </>
