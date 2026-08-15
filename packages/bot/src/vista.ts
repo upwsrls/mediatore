@@ -79,6 +79,18 @@ export function sonoIlChiamante(vista: VistaDelBot): boolean {
 }
 
 /**
+ * Chi ha in mano la carta chiamata, e ancora nessuno lo sa. L'engine
+ * scopre l'amico solo quando quella carta esce: lui lo sa dalla prima
+ * base, perche' la carta ce l'ha in mano.
+ */
+export function sonoLAmicoNascosto(vista: VistaDelBot): boolean {
+  const { alliance } = vista;
+  if (alliance.kind !== 'amico' || alliance.friend !== null) return false;
+  if (alliance.caller === vista.io) return false;
+  return vista.mano.some((carta) => carta.id === alliance.calledCard);
+}
+
+/**
  * Chi gioca dalla mia parte. Nell'amico c'e' una cosa che l'engine non puo'
  * sapere e io si': se ho in mano la carta chiamata sono l'amico, e quindi sto
  * col chiamante anche prima di scoprirmi. E' esattamente quello che sa il
@@ -87,10 +99,7 @@ export function sonoIlChiamante(vista: VistaDelBot): boolean {
 export function alleatoDi(vista: VistaDelBot, altro: PlayerId): boolean {
   if (altro === vista.io) return true;
   const { alliance } = vista;
-  if (alliance.kind === 'amico' && alliance.friend === null) {
-    const sonoLAmico = vista.mano.some((carta) => carta.id === alliance.calledCard);
-    if (sonoLAmico) return altro === alliance.caller;
-  }
+  if (alliance.kind === 'amico' && sonoLAmicoNascosto(vista)) return altro === alliance.caller;
   return isAllyFor(alliance)(vista.io, altro);
 }
 

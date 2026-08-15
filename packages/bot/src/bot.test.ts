@@ -22,7 +22,7 @@ import {
 } from './memoria.ts';
 import { scegliScarti } from './scarta.ts';
 import { possoVincere, rischioDiPerdere } from './valuta.ts';
-import { sonoIlChiamante, vistaDaStato } from './vista.ts';
+import { sonoIlChiamante, sonoLAmicoNascosto, vistaDaStato } from './vista.ts';
 
 const MAZZO = createDeck();
 const TRIONFO: Suit = 'bastoni';
@@ -2148,6 +2148,257 @@ describe('il difensore fa uccidere il chiamante', () => {
     expect(state.turn).toBe(0);
     expect(scelta(state).suit).toBe('spade');
     expect(scelta(state).id).not.toBe('denari-re');
+  });
+});
+
+describe('a 5 con l amico', () => {
+  const CHIAMATA = carta('coppe', 7);
+
+  function tavoloAmico(args: {
+    caller: number;
+    friend: number | null;
+    leader: number;
+    mani: Card[][];
+    calledCard?: string;
+  }): HandState {
+    const chiamata = args.calledCard ?? CHIAMATA.id;
+    return tavolo({
+      players: 5,
+      variant: 'amico',
+      alliance:
+        args.friend === null
+          ? { kind: 'amico', caller: args.caller, calledCard: chiamata, friend: null }
+          : { kind: 'amico', caller: args.caller, calledCard: chiamata, friend: args.friend },
+      mani: args.mani,
+      monte: [],
+      leader: args.leader,
+    });
+  }
+
+  const treTrionfi = [
+    carta(TRIONFO, 7),
+    carta(TRIONFO, 'asso'),
+    carta(TRIONFO, 6),
+    carta('denari', 7),
+    carta('denari', 'asso'),
+  ];
+
+  it('il chiamante con trionfi si arrassa dalle prime basi, dove a 3 e a 5 monte no', () => {
+    const aTre = tavolo({
+      players: 3,
+      alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+      mani: [
+        treTrionfi,
+        [carta('spade', 3), carta('spade', 4), carta('coppe', 3), carta('coppe', 4), carta('coppe', 5)],
+        [carta('spade', 5), carta('spade', 6), carta('coppe', 6), carta('coppe', 2), carta('denari', 2)],
+      ],
+      monte: [],
+      leader: 0,
+    });
+    expect(trionfiAvversariRimasti(vistaDaStato(aTre, 0))).toBe(7);
+    expect(trionfiBastanoARipulire(vistaDaStato(aTre, 0))).toBe(false);
+    expect(scelta(aTre).suit).not.toBe(TRIONFO);
+
+    const aCinqueMonte = tavolo({
+      players: 5,
+      alliance: { kind: 'monte', caller: 0, chiamata: 'normale' },
+      mani: [
+        treTrionfi,
+        [carta('spade', 3), carta('spade', 4), carta('coppe', 3)],
+        [carta('spade', 5), carta('coppe', 2), carta('denari', 2)],
+        [carta('spade', 6), carta('coppe', 4), carta('denari', 3)],
+        [carta('spade', 2), carta('coppe', 5), carta('denari', 4)],
+      ],
+      monte: [],
+      leader: 0,
+    });
+    expect(trionfiBastanoARipulire(vistaDaStato(aCinqueMonte, 0))).toBe(false);
+    expect(scelta(aCinqueMonte).suit).not.toBe(TRIONFO);
+
+    const aCinqueAmico = tavoloAmico({
+      caller: 0,
+      friend: null,
+      leader: 0,
+      mani: [
+        treTrionfi,
+        [carta('spade', 3), carta('spade', 4), carta('coppe', 3)],
+        [CHIAMATA, carta('spade', 5), carta('denari', 2)],
+        [carta('spade', 6), carta('coppe', 2), carta('denari', 3)],
+        [carta('spade', 2), carta('coppe', 4), carta('denari', 4)],
+      ],
+    });
+    expect(trionfiAvversariRimasti(vistaDaStato(aCinqueAmico, 0))).toBe(7);
+    expect(trionfiBastanoARipulire(vistaDaStato(aCinqueAmico, 0))).toBe(true);
+    expect(scelta(aCinqueAmico).suit).toBe(TRIONFO);
+  });
+
+  it('l amico nascosto apre la prima volta a trionfo, senza scoprirsi', () => {
+    const state = tavoloAmico({
+      caller: 0,
+      friend: null,
+      leader: 2,
+      mani: [
+        [carta(TRIONFO, 7), carta(TRIONFO, 'asso'), carta('denari', 2)],
+        [carta('spade', 3), carta('spade', 4), carta('denari', 3)],
+        [CHIAMATA, carta(TRIONFO, 3), carta('denari', 4), carta('spade', 5)],
+        [carta('spade', 6), carta('coppe', 2), carta('denari', 5)],
+        [carta('spade', 2), carta('coppe', 3), carta('denari', 6)],
+      ],
+    });
+    const vista = vistaDaStato(state, 2);
+    expect(sonoLAmicoNascosto(vista)).toBe(true);
+    expect(scelta(state).suit).toBe(TRIONFO);
+    expect(scelta(state).id).toBe('bastoni-3');
+    expect(scelta(state).id).not.toBe(CHIAMATA.id);
+  });
+
+  it('l amico nascosto apre la seconda volta normalmente, senza tirare trionfo', () => {
+    const state = tavoloAmico({
+      caller: 0,
+      friend: null,
+      leader: 2,
+      mani: [
+        [carta('denari', 2), carta('spade', 2), carta('coppe', 2)],
+        [carta('spade', 3), carta('denari', 3), carta('coppe', 3)],
+        [CHIAMATA, carta(TRIONFO, 3), carta(TRIONFO, 5), carta('denari', 4), carta('spade', 5)],
+        [carta('spade', 6), carta('coppe', 4), carta('denari', 5)],
+        [carta('spade', 'fante'), carta('coppe', 5), carta('denari', 6)],
+      ],
+    });
+    const dopo = giocate(state, [
+      carta(TRIONFO, 3),
+      carta('spade', 6),
+      carta('spade', 'fante'),
+      carta('denari', 2),
+      carta('spade', 3),
+    ]);
+    expect(dopo.turn).toBe(2);
+    expect(sonoLAmicoNascosto(vistaDaStato(dopo, 2))).toBe(true);
+    expect(scelta(dopo).suit).not.toBe(TRIONFO);
+  });
+
+  it('l amico nascosto senza trionfi apre normalmente', () => {
+    const state = tavoloAmico({
+      caller: 0,
+      friend: null,
+      leader: 2,
+      mani: [
+        [carta(TRIONFO, 7), carta(TRIONFO, 'asso'), carta('denari', 2)],
+        [carta('spade', 3), carta(TRIONFO, 3), carta('denari', 3)],
+        [CHIAMATA, carta('denari', 4), carta('spade', 5)],
+        [carta('spade', 6), carta('coppe', 2), carta('denari', 5)],
+        [carta('spade', 2), carta('coppe', 3), carta('denari', 6)],
+      ],
+    });
+    expect(sonoLAmicoNascosto(vistaDaStato(state, 2))).toBe(true);
+    expect(scelta(state).suit).not.toBe(TRIONFO);
+    expect(['coppe-7', 'denari-4', 'spade-5']).toContain(scelta(state).id);
+  });
+
+  it('l amico con la maniglia di trionfo chiamata la gioca appena ha la mano', () => {
+    const maniglia = carta(TRIONFO, 7);
+    const state = tavoloAmico({
+      caller: 0,
+      friend: null,
+      leader: 2,
+      calledCard: maniglia.id,
+      mani: [
+        [carta(TRIONFO, 'asso'), carta('denari', 2), carta('spade', 2)],
+        [carta('spade', 3), carta('denari', 3), carta('coppe', 2)],
+        [maniglia, carta(TRIONFO, 3), carta('denari', 4), carta('spade', 5)],
+        [carta('spade', 6), carta('coppe', 3), carta('denari', 5)],
+        [carta('spade', 'fante'), carta('coppe', 4), carta('denari', 6)],
+      ],
+    });
+    expect(sonoLAmicoNascosto(vistaDaStato(state, 2))).toBe(true);
+    expect(scelta(state).id).toBe(maniglia.id);
+  });
+
+  it('dopo la maniglia di trionfo, con scartina e nessun palo vuoto, passa la mano', () => {
+    const maniglia = carta(TRIONFO, 7);
+    const state = tavoloAmico({
+      caller: 0,
+      friend: null,
+      leader: 2,
+      calledCard: maniglia.id,
+      mani: [
+        [carta('denari', 2), carta('spade', 2), carta('coppe', 2)],
+        [carta('spade', 3), carta('denari', 3), carta('coppe', 3)],
+        [maniglia, carta(TRIONFO, 3), carta('denari', 4), carta('coppe', 4), carta('spade', 5)],
+        [carta('spade', 6), carta('coppe', 5), carta('denari', 5)],
+        [carta('spade', 'fante'), carta('coppe', 6), carta('denari', 6)],
+      ],
+    });
+    const dopo = giocate(state, [
+      maniglia,
+      carta('spade', 6),
+      carta('spade', 'fante'),
+      carta('denari', 2),
+      carta('spade', 3),
+    ]);
+    expect(dopo.turn).toBe(2);
+    expect(sonoLAmicoNascosto(vistaDaStato(dopo, 2))).toBe(false);
+    expect(scelta(dopo).id).toBe('bastoni-3');
+  });
+
+  it('dopo la maniglia di trionfo, vuoto di un palo, tiene la scartina per uccidere', () => {
+    const maniglia = carta(TRIONFO, 7);
+    const state = tavoloAmico({
+      caller: 0,
+      friend: null,
+      leader: 2,
+      calledCard: maniglia.id,
+      mani: [
+        [carta('denari', 2), carta('spade', 2), carta('coppe', 2)],
+        [carta('spade', 3), carta('denari', 3), carta('coppe', 3)],
+        [maniglia, carta(TRIONFO, 3), carta('denari', 4), carta('denari', 5), carta('coppe', 4)],
+        [carta('spade', 6), carta('coppe', 5), carta('denari', 6)],
+        [carta('spade', 'fante'), carta('coppe', 6), carta('spade', 4)],
+      ],
+    });
+    const dopo = giocate(state, [
+      maniglia,
+      carta('spade', 6),
+      carta('spade', 'fante'),
+      carta('denari', 2),
+      carta('spade', 3),
+    ]);
+    expect(dopo.turn).toBe(2);
+    expect(scelta(dopo).suit).not.toBe(TRIONFO);
+  });
+
+  it('dopo la rivelazione l amico non tira piu trionfo per passare la mano', () => {
+    const state = tavoloAmico({
+      caller: 0,
+      friend: 2,
+      leader: 2,
+      mani: [
+        [carta(TRIONFO, 're'), carta('denari', 2), carta('spade', 2)],
+        [carta('spade', 3), carta('denari', 3), carta('coppe', 2)],
+        [carta(TRIONFO, 7), carta(TRIONFO, 'asso'), carta('denari', 4), carta('spade', 5)],
+        [carta('spade', 6), carta('coppe', 3), carta('denari', 5)],
+        [carta('coppe', 4), carta('coppe', 5), carta('denari', 6)],
+      ],
+    });
+    expect(sonoLAmicoNascosto(vistaDaStato(state, 2))).toBe(false);
+    expect(scelta(state).suit).not.toBe(TRIONFO);
+  });
+
+  it('un avversario qualsiasi non cambia comportamento', () => {
+    const state = tavoloAmico({
+      caller: 0,
+      friend: null,
+      leader: 3,
+      mani: [
+        [carta(TRIONFO, 7), carta('denari', 2), carta('spade', 2)],
+        [carta('spade', 3), carta('denari', 3), carta('coppe', 2)],
+        [CHIAMATA, carta('denari', 4), carta('spade', 5)],
+        [carta(TRIONFO, 'asso'), carta(TRIONFO, 3), carta('denari', 5), carta('spade', 6)],
+        [carta('coppe', 3), carta('coppe', 4), carta('denari', 6)],
+      ],
+    });
+    expect(sonoLAmicoNascosto(vistaDaStato(state, 3))).toBe(false);
+    expect(scelta(state).suit).not.toBe(TRIONFO);
   });
 });
 

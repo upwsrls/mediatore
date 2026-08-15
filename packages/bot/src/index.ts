@@ -5,6 +5,7 @@ export {
   puntiDeiMiei,
   puntiDi,
   sonoIlChiamante,
+  sonoLAmicoNascosto,
   vistaDaStato,
 } from './vista.ts';
 export {

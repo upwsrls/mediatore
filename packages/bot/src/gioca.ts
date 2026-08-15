@@ -20,7 +20,7 @@ import {
   rischioDiPerdere,
 } from './valuta.ts';
 import type { VistaDelBot } from './vista.ts';
-import { alleatoDi, preseRimaste, puntiDeiMiei, sonoIlChiamante } from './vista.ts';
+import { alleatoDi, preseRimaste, puntiDeiMiei, sonoIlChiamante, sonoLAmicoNascosto } from './vista.ts';
 import { beats, currentWinner } from '@mediatore/engine';
 
 /**
@@ -281,11 +281,30 @@ export function trionfiDaProteggere(mano: readonly Card[], trump: Suit): Card[] 
  * Il caso vero: chiamante con 7, asso e 6 di trionfo, tre su dieci, gli altri
  * sei. Ha tirato 7 e asso, gli avversari avevano ancora il re e il fante, e
  * alla presa dopo l'asso di denari se l'e' preso il re di trionfo.
+ *
+ * A 5 con l'amico il conto cambia: i trionfi in giro sono divisi fra quattro
+ * persone, e un giro solo ne tira fuori parecchi. Chiedere di averne tanti
+ * quanti ne restano a tutti insieme vuol dire non arrassarsi quasi mai, e
+ * le laterali — le proprie e quella dell'amico — vengono tagliate una dopo
+ * l'altra. Li' bastano i giri per svuotare chi ne ha di piu', non la somma.
  */
 export function trionfiBastanoARipulire(vista: VistaDelBot): boolean {
-  const giriNecessari = trionfiAvversariRimasti(vista);
   const giriChePossoTirare = vista.mano.filter((carta) => carta.suit === vista.trump).length;
-  return giriChePossoTirare >= giriNecessari;
+  const loro = trionfiAvversariRimasti(vista);
+  if (vista.alliance.kind !== 'amico') return giriChePossoTirare >= loro;
+  const chiPuo = avversariCheTengonoTrionfo(vista);
+  if (chiPuo === 0) return true;
+  return giriChePossoTirare >= Math.ceil(loro / chiPuo);
+}
+
+function avversariCheTengonoTrionfo(vista: VistaDelBot): number {
+  let quanti = 0;
+  for (let seat = 0; seat < vista.config.players; seat += 1) {
+    if (alleatoDi(vista, seat)) continue;
+    if (eSemeFinito(vista, seat, vista.trump)) continue;
+    quanti += 1;
+  }
+  return quanti;
 }
 
 /**
@@ -351,7 +370,10 @@ function chiudeIlGiocoASuoFavore(vista: VistaDelBot): boolean {
  * restano tagliabili come prima.
  *
  * Il terzo e' avere basi laterali che qualcuno puo' ancora tagliare: quelle
- * si incassano prima, che ad arrassarsi si fa sempre in tempo.
+ * si incassano prima, che ad arrassarsi si fa sempre in tempo. A 5 con
+ * l'amico l'arrassata viene prima: quattro avversari restano vuoti di un
+ * palo in un attimo, e le laterali — le proprie e quella dell'amico —
+ * muoiono se i trionfi restano in giro.
  *
  * Il difensore tira solo se chiude il gioco a suo favore, o se e' l'ultima
  * base e la firma si incassa. Fuori da li' apre in un altro palo.
@@ -360,6 +382,7 @@ function convieneTirareTrionfo(vista: VistaDelBot): boolean {
   if (sonoIlChiamante(vista)) {
     if (trionfiAvversariRimasti(vista) === 0) return false;
     if (!trionfiBastanoARipulire(vista)) return false;
+    if (vista.alliance.kind === 'amico') return true;
     return basiInPericolo(vista).length === 0;
   }
   if (preseRimaste(vista) <= 1) return true;
@@ -692,7 +715,93 @@ function sfilaDalLiscio(vista: VistaDelBot, legali: readonly Card[], rng: Rng): 
   );
 }
 
+function haGiaAperto(vista: VistaDelBot): boolean {
+  return vista.preseCompletate.some((presa) => presa.cards[0]?.player === vista.io);
+}
+
+function cartaChiamataInMano(vista: VistaDelBot, legali: readonly Card[]): Card | null {
+  const { alliance } = vista;
+  if (alliance.kind !== 'amico') return null;
+  return legali.find((carta) => carta.id === alliance.calledCard) ?? null;
+}
+
+function eManigliaDiTrionfo(vista: VistaDelBot, carta: Card): boolean {
+  return carta.suit === vista.trump && carta.rank === 7;
+}
+
+function haGiaGiocatoLaManigliaDiTrionfoChiamata(vista: VistaDelBot): boolean {
+  if (vista.alliance.kind !== 'amico') return false;
+  const id = vista.alliance.calledCard;
+  return vista.preseCompletate.some((presa) =>
+    presa.cards.some(
+      (giocata) =>
+        giocata.player === vista.io &&
+        giocata.card.id === id &&
+        eManigliaDiTrionfo(vista, giocata.card),
+    ),
+  );
+}
+
+/** Vuoto di un palo laterale: la scartina di trionfo li' serve da coltello. */
+function haUnPaloLateraleVuoto(vista: VistaDelBot): boolean {
+  const laterali = new Set(
+    vista.mano.filter((carta) => carta.suit !== vista.trump).map((carta) => carta.suit),
+  );
+  return laterali.size < 3;
+}
+
+function scartinaDiTrionfo(legali: readonly Card[], trump: Suit): Card | null {
+  const scartine = legali.filter((carta) => carta.suit === trump && cardPoints(carta.rank) === 0);
+  if (scartine.length === 0) return null;
+  return migliori(scartine, (carta) => -cardStrength(carta.rank))[0] ?? null;
+}
+
+/**
+ * L'amico, quando apre. Tre cose, in quest'ordine:
+ *
+ * Se ha in mano la maniglia di trionfo chiamata, la gioca: prende di
+ * sicuro, e il valore della presa vale piu' del segreto.
+ *
+ * Se l'ha gia' giocata e gli resta una scartina di trionfo, la tira per
+ * passare la mano al chiamante — ma solo se non e' vuoto di un palo:
+ * li' la scartina se la tiene per uccidere.
+ *
+ * Altrimenti, nascosto, tira trionfo UNA volta sola, la prima che apre.
+ * Le volte dopo i trionfi restano per uccidere.
+ */
+function passaLaManoAlChiamante(
+  vista: VistaDelBot,
+  legali: readonly Card[],
+  rng: Rng,
+): Card | null {
+  const chiamata = cartaChiamataInMano(vista, legali);
+  if (chiamata !== null && eManigliaDiTrionfo(vista, chiamata)) return chiamata;
+
+  if (haGiaGiocatoLaManigliaDiTrionfoChiamata(vista)) {
+    if (haUnPaloLateraleVuoto(vista)) return null;
+    return scartinaDiTrionfo(legali, vista.trump);
+  }
+
+  if (!sonoLAmicoNascosto(vista)) return null;
+  if (haGiaAperto(vista)) return null;
+  const trionfi = legali.filter((carta) => carta.suit === vista.trump);
+  if (trionfi.length === 0) return null;
+  const { alliance } = vista;
+  const coperti =
+    alliance.kind === 'amico'
+      ? trionfi.filter((carta) => carta.id !== alliance.calledCard)
+      : trionfi;
+  const pool = coperti.length > 0 ? coperti : trionfi;
+  return scegliFra(
+    migliori(pool, (carta) => -cardStrength(carta.rank) - cardPoints(carta.rank) / 10),
+    rng,
+  );
+}
+
 function apre(vista: VistaDelBot, legali: readonly Card[], rng: Rng): Card {
+  const passaggio = passaLaManoAlChiamante(vista, legali, rng);
+  if (passaggio !== null) return passaggio;
+
   const firme = legali.filter((carta) => eFirma(vista, carta));
   const laterali = firme.filter((carta) => carta.suit !== vista.trump);
 
