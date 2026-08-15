@@ -1,0 +1,13 @@
+export { caratteristiche, NOMI, PAROLE, prodotto } from './caratteristiche.ts';
+export type { Nome, Vettore } from './caratteristiche.ts';
+export { PESI_INIZIALI, copiaPesi, estremiDeiPesi } from './pesi.ts';
+export type { Pesi } from './pesi.ts';
+export { scegliCartaPesata, scegliCartaDiSerie, punteggioDellaMossa } from './scegli.ts';
+export { giocaSmazzata, TAVOLI } from './smazzata.ts';
+export type { ScegliCarta, Tavolo, TavoloId, EsitoSmazzata } from './smazzata.ts';
+export { misuraAccordo, accordoSuSmazzata } from './accordo.ts';
+export type { Accordo } from './accordo.ts';
+export { mettiAllaProva } from './prova.ts';
+export type { Prova } from './prova.ts';
+export { caricaCheckpoint, salvaCheckpoint, checkpointVuoto } from './checkpoint.ts';
+export type { Checkpoint } from './checkpoint.ts';
