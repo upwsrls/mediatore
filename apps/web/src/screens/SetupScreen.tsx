@@ -14,6 +14,7 @@ interface Props {
     puntoDiVista: number,
     controBot: boolean,
     carteScoperte: boolean,
+    botPensante: boolean,
     livello: Livello,
   ) => void;
 }
@@ -24,6 +25,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
   const [puntoDiVista, setPuntoDiVista] = useState(0);
   const [controBot, setControBot] = useState(false);
   const [carteScoperte, setCarteScoperte] = useState(false);
+  const [botPensante, setBotPensante] = useState(true);
   const [livello, setLivello] = useState<Livello>('principiante');
   const audio = useAudio();
 
@@ -67,14 +69,24 @@ export function SetupScreen({ onStart }: Props): ReactElement {
       {/* Attrezzo da officina: serve a vedere dove sbagliano i bot, e le
           smazzate giocate cosi' finiscono nel registro col loro segno. */}
       {controBot && (
-        <label className="interruttore interruttore-annidato">
-          <input
-            type="checkbox"
-            checked={carteScoperte}
-            onChange={(evento) => scegli(carteScoperte, evento.target.checked, setCarteScoperte)}
-          />
-          vedi le carte di tutti (per correggere i bot)
-        </label>
+        <>
+          <label className="interruttore interruttore-annidato">
+            <input
+              type="checkbox"
+              checked={carteScoperte}
+              onChange={(evento) => scegli(carteScoperte, evento.target.checked, setCarteScoperte)}
+            />
+            vedi le carte di tutti (per correggere i bot)
+          </label>
+          <label className="interruttore interruttore-annidato">
+            <input
+              type="checkbox"
+              checked={botPensante}
+              onChange={(evento) => scegli(botPensante, evento.target.checked, setBotPensante)}
+            />
+            bot pensante (simula le mosse; spegni per il bot di serie)
+          </label>
+        </>
       )}
 
       <fieldset>
@@ -158,7 +170,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
         className="bottone-grande"
         onClick={() => {
           audio.suona('vaiAlTavolo');
-          onStart(players, variant, puntoDiVista, controBot, carteScoperte, livello);
+          onStart(players, variant, puntoDiVista, controBot, carteScoperte, botPensante, livello);
         }}
       >
         Vai al tavolo

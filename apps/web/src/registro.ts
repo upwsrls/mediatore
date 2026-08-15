@@ -271,9 +271,25 @@ export function chiudiSmazzata(esito: Esito, amicoScoperto: number | null): void
   inCorso.esito = esito;
   inCorso.amicoScoperto = amicoScoperto;
   smazzate = [...smazzate, inCorso];
+  const chiusa = inCorso;
   inCorso = null;
   salva();
   avvisa();
+  mandaAlProgetto(chiusa);
+}
+
+/**
+ * Copia la smazzata chiusa nella cartella partite/ del progetto, se il
+ * dev server e' in ascolto. Se non c'e' — preview, PWA, rete staccata —
+ * il gioco non se ne accorge: resta il quaderno nel browser.
+ */
+function mandaAlProgetto(smazzata: Smazzata): void {
+  if (typeof fetch !== 'function') return;
+  void fetch('/__partite', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessioneIniziata: iniziata, smazzata }),
+  }).catch(() => undefined);
 }
 
 /**

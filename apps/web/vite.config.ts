@@ -1,9 +1,12 @@
+import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { pluginPartite } from './vite-partite.ts';
 
 export default defineConfig({
   plugins: [
+    pluginPartite(fileURLToPath(new URL('../../partite', import.meta.url))),
     react(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -35,8 +38,9 @@ export default defineConfig({
       },
     }),
   ],
-  // Engine e bot sono pacchetti del workspace, collegati da pnpm e pubblicati in
-  // TypeScript sorgente (`exports: ./src/index.ts`): Vite non li pre-impacchetta
-  // e li serve come sorgente, quindi qui non serve nessun optimizeDeps. Se un
-  // giorno avranno una build in `dist`, andranno esclusi tutti e due insieme.
+  // Engine, bot e pensatore sono pacchetti del workspace, collegati da pnpm e
+  // pubblicati in TypeScript sorgente (`exports: ./src/index.ts`): Vite non li
+  // pre-impacchetta e li serve come sorgente, quindi qui non serve nessun
+  // optimizeDeps. Se un giorno avranno una build in `dist`, andranno esclusi
+  // tutti insieme.
 });

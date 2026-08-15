@@ -73,3 +73,39 @@ export function pausaScarto(quante: number, caso: Rng): number {
   // Piu' carte ci sono da lasciare andare, piu' la scelta si fa pesante.
   return attesa(1500, 3000, quante, caso);
 }
+
+/**
+ * Il pensiero parte insieme alla pausa e si gioca quando sono finiti
+ * tutti e due. Cosi' i quaranta millisecondi del pensatore stanno DENTRO
+ * i 700-1800 ms gia' previsti, e non si aggiungono dopo. Se per qualche
+ * motivo il pensiero dura di piu', si gioca appena e' pronto.
+ */
+export function dopoPausaEPensiero<T>(
+  pensiero: Promise<T>,
+  pausaMs: number,
+  adesso: () => number = () => performance.now(),
+  ritarda: (ms: number, fai: () => void) => () => void = (ms, fai) => {
+    const timer = setTimeout(fai, ms);
+    return () => clearTimeout(timer);
+  },
+): { pronta: Promise<T>; annulla: () => void } {
+  const inizio = adesso();
+  let ferma: (() => void) | undefined;
+  let annullato = false;
+  const pronta = new Promise<T>((risolvi, rifiuta) => {
+    void pensiero.then((risultato) => {
+      if (annullato) return;
+      const rimasto = Math.max(0, pausaMs - (adesso() - inizio));
+      ferma = ritarda(rimasto, () => {
+        if (!annullato) risolvi(risultato);
+      });
+    }, rifiuta);
+  });
+  return {
+    pronta,
+    annulla: () => {
+      annullato = true;
+      ferma?.();
+    },
+  };
+}

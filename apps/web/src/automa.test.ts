@@ -1,8 +1,17 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import type { Card } from '@mediatore/engine';
 import { createDeck, createRng, tableConfig } from '@mediatore/engine';
 import { describe, expect, it } from 'vitest';
-import { decisioneDiChiamata, pausaCarta, pausaChiamata, pausaScarto } from './automa';
+import {
+  decisioneDiChiamata,
+  dopoPausaEPensiero,
+  pausaCarta,
+  pausaChiamata,
+  pausaScarto,
+} from './automa';
 import { NOMI_DA_BAR, pescaNomi } from './nomi';
+import { MONDI_DEL_TAVOLO, TEMPO_DEL_TAVOLO_MS } from './pensa.lavoro';
 
 const MAZZO = createDeck();
 
@@ -99,5 +108,71 @@ describe('i tempi del bot', () => {
     const unaSola = pausaCarta(1, rngFinto(0.5));
     const manoPiena = pausaCarta(8, rngFinto(0.5));
     expect(manoPiena).toBeGreaterThan(unaSola);
+  });
+
+  it('la pausa della carta copre il tetto del pensatore', () => {
+    // La pausa piu' corta e' 700 ms, il pensiero al massimo 500: il calcolo
+    // sta dentro l'attesa e non allunga il tavolo.
+    expect(TEMPO_DEL_TAVOLO_MS).toBe(500);
+    expect(MONDI_DEL_TAVOLO).toBe(100);
+    expect(pausaCarta(1, rngFinto(0))).toBeGreaterThanOrEqual(TEMPO_DEL_TAVOLO_MS);
+  });
+});
+
+describe('il pensiero sta dentro la pausa', () => {
+  it('aspetta il resto della pausa quando il pensiero finisce prima', async () => {
+    let ora = 0;
+    let ritardo = -1;
+    const { pronta } = dopoPausaEPensiero(
+      Promise.resolve('coppe-7'),
+      1000,
+      () => ora,
+      (ms, fai) => {
+        ritardo = ms;
+        fai();
+        return () => undefined;
+      },
+    );
+    ora = 40;
+    await expect(pronta).resolves.toBe('coppe-7');
+    expect(ritardo).toBe(960);
+  });
+
+  it('gioca subito se il pensiero dura piu della pausa', async () => {
+    let ora = 0;
+    let ritardo = -1;
+    const { pronta } = dopoPausaEPensiero(
+      Promise.resolve('spade-asso'),
+      700,
+      () => ora,
+      (ms, fai) => {
+        ritardo = ms;
+        fai();
+        return () => undefined;
+      },
+    );
+    ora = 800;
+    await expect(pronta).resolves.toBe('spade-asso');
+    expect(ritardo).toBe(0);
+  });
+});
+
+describe('il pensatore gira fuori dalla pagina', () => {
+  function legge(file: string): string {
+    return readFileSync(fileURLToPath(new URL(file, import.meta.url)), 'utf8');
+  }
+
+  it('la scelta pensante sta nel worker, non nel filo della pagina', () => {
+    expect(legge('./pensa.worker.ts')).toMatch(/scegliCartaPensando/);
+    expect(legge('./pensa.operaio.ts')).toMatch(/new Worker/);
+    expect(legge('./useHand.ts')).toMatch(/chiediCartaPensando/);
+    expect(legge('./useHand.ts')).toMatch(/dopoPausaEPensiero/);
+    expect(legge('./useHand.ts')).not.toMatch(/scegliCartaPensando/);
+  });
+
+  it('chiamata e scarto restano del bot di serie', () => {
+    expect(legge('./useHand.ts')).toMatch(/decisioneDiChiamata/);
+    expect(legge('./useHand.ts')).toMatch(/scegliScarti/);
+    expect(legge('./pensa.worker.ts')).not.toMatch(/decidiChiamata|scegliScarti/);
   });
 });

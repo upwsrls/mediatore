@@ -6,6 +6,9 @@ coverage
 .vite
 .pnpm-store
 
+# Smazzate giocate, scritte dal dev server: dati di lavoro, non codice
+partite/
+
 # Originali scaricati da Commons: si riscaricano con prepara-carte.mjs
 apps/web/scripts/.originali
 

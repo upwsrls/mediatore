@@ -36,10 +36,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   cartaDellAmico,
   decisioneDiChiamata,
+  dopoPausaEPensiero,
   pausaCarta,
   pausaChiamata,
   pausaScarto,
 } from './automa';
+import { chiediCartaPensando } from './pensa.operaio';
 import { suona } from './audio/motore';
 import { suonoDellaChiamata } from './audio/suoni';
 import { precaricaMazzo } from './carte/immagini';
@@ -92,6 +94,11 @@ export interface Session {
    * contiene nemmeno.
    */
   carteScoperte: boolean;
+  /**
+   * I bot scelgono la carta col pensatore. Falso: tornano alle regole di
+   * serie. Chiamata e scarto restano di serie in tutti e due i casi.
+   */
+  botPensante: boolean;
   /**
    * Quanto aiuta il tavolo: da principiante i punti e i trionfi si leggono a
    * schermo, da esperto si tengono a mente. Non cambia niente del gioco.
@@ -252,6 +259,7 @@ function nuovaSessione(
   puntoDiVista: number,
   controBot: boolean,
   carteScoperte: boolean,
+  botPensante: boolean,
   livello: Livello,
   // Chi era gia' seduto: la compagnia non cambia fra una smazzata e l'altra,
   // si cambia solo cambiando tavolo.
@@ -296,6 +304,7 @@ function nuovaSessione(
     puntoDiVista: controBot ? POSTO_DELL_UMANO : puntoDiVista < players ? puntoDiVista : 0,
     umano: controBot ? POSTO_DELL_UMANO : null,
     carteScoperte: controBot && carteScoperte,
+    botPensante: controBot && botPensante,
     livello,
     nomi,
     seed,
@@ -363,6 +372,7 @@ export interface UseHand {
     puntoDiVista: number,
     controBot: boolean,
     carteScoperte: boolean,
+    botPensante: boolean,
     livello: Livello,
   ) => void;
   /** Solo a smazzata finita: durante il gioco il tavolo non si tocca. */
@@ -481,13 +491,24 @@ export function useHand(): UseHand {
       puntoDiVista: number,
       controBot: boolean,
       carteScoperte: boolean,
+      botPensante: boolean,
       livello: Livello,
     ) => {
       try {
         const seed = nuovoSeed();
         casoBot.current = createRng(seed ^ SEME_DELLE_MOSSE);
         setSession(
-          nuovaSessione(players, variant, seed, 0, puntoDiVista, controBot, carteScoperte, livello),
+          nuovaSessione(
+            players,
+            variant,
+            seed,
+            0,
+            puntoDiVista,
+            controBot,
+            carteScoperte,
+            botPensante,
+            livello,
+          ),
         );
         setError(null);
         setPause(null);
@@ -781,6 +802,7 @@ export function useHand(): UseHand {
           session.puntoDiVista,
           session.umano !== null,
           session.carteScoperte,
+          session.botPensante,
           session.livello,
           session.nomi,
         ),
@@ -969,9 +991,23 @@ export function useHand(): UseHand {
       const legali = legalPlaysFor(state, state.turn);
       // Il bot guarda il tavolo come lo guarderebbe da seduto: la sua mano,
       // le carte uscite, niente di piu'. Le mani degli altri non le vede.
-      const carta = scegliCarta(vistaDaStato(state, state.turn), caso);
-      const timer = setTimeout(() => gioca(carta.id), pausaCarta(legali.length, caso));
-      return () => clearTimeout(timer);
+      const vista = vistaDaStato(state, state.turn);
+      const attesa = pausaCarta(legali.length, caso);
+      if (!session.botPensante) {
+        const carta = scegliCarta(vista, caso);
+        const timer = setTimeout(() => gioca(carta.id), attesa);
+        return () => clearTimeout(timer);
+      }
+      // Il pensiero parte ora, insieme alla pausa: i ~40 ms stanno dentro
+      // i 700-1800, e girano sull'altro filo perche' la pagina non si fermi.
+      const seme = Math.floor(caso() * 0x1_0000_0000);
+      const lavoro = chiediCartaPensando(vista, seme);
+      const insieme = dopoPausaEPensiero(lavoro.pronta, attesa);
+      void insieme.pronta.then((cartaId) => gioca(cartaId));
+      return () => {
+        lavoro.annulla();
+        insieme.annulla();
+      };
     }
 
     return undefined;

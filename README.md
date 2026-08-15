@@ -42,6 +42,10 @@ nelle varianti a monte (3, 4, 5 giocatori) e amico (5 giocatori).
   piu' nessuno.
 - `packages/taratore` — cerca i numeri migliori per il bot facendogli giocare
   centinaia di migliaia di smazzate contro se stesso.
+- `packages/pensatore` — il bot che sceglie la carta simulando come potrebbe
+  finire la smazzata, con le regole di serie a far giocare gli altri.
+- `packages/specchio` — legge le partite giocate e le confronta col bot di
+  serie, raggruppando le differenze per situazione e per ruolo.
 - `apps/simulator` — simulatore da terminale: fuzzer massivo e modalita'
   interattiva. Dipende solo da `@mediatore/engine` e dai builtin di Node.
 - `apps/web` — PWA React in modalita' hotseat: tutti i giocatori sullo stesso
@@ -114,6 +118,54 @@ durante la taratura, contro il bot di serie, contro `greedy` e contro
 Il taratore non scrive niente: stampa e basta. I valori che convincono si
 portano a mano in `packages/bot/src/parametri.ts`.
 
+## Pensatore
+
+Il bot di serie gioca con le regole insegnate dalle partite vere. Il pensatore
+non impara niente di nuovo: per ogni carta legale immagina come sono fatte le
+mani nascoste (compatibili con i pali a cui qualcuno non ha risposto), gioca
+la smazzata fino in fondo con quelle regole, e tiene la carta che in media
+rende di piu'. Le stesse distribuzioni valgono per tutte le mosse, cosi' si
+confronta la mossa e non la fortuna. Se due carte sono quasi uguali, decide
+il bot di serie.
+
+```sh
+# quanti mondi sta in mezzo secondo, su una mossa a meta' smazzata
+node --experimental-strip-types packages/pensatore/src/sfida.ts --solo-tempo --tempo=500
+
+# sfida contro il bot di serie: stessi mazzi, posti alternati e scambiati
+node --experimental-strip-types packages/pensatore/src/sfida.ts --smazzate=250 --mondi=50 --tempo=500
+
+# la stessa sfida a 20, 50, 100 e 200 mondi, per vedere dove si ferma il guadagno
+node --experimental-strip-types packages/pensatore/src/sfida.ts --smazzate=250 --scala --tempo=500
+```
+
+Argomenti: `--smazzate=N` (mazzi per tavolo, ognuno giocato due volte, default
+250), `--mondi=N` (default 50), `--tempo=ms` (tetto per mossa, default 500),
+`--seed=N` (default 1), `--tavolo=3|4|5|amico|tutti` (default `tutti`),
+`--worker=N` (default: i processori della macchina), `--solo-tempo`, `--scala`.
+Lo stesso comando e' `pnpm --filter @mediatore/pensatore sfida`.
+
+Chiamata e scarto restano del bot di serie: si misura solo la carta da giocare.
+Il saldo e' in quote, per ruolo (chiamante e difensore) e per tavolo, con il
+tempo medio a mossa pensante.
+
+## Specchio
+
+Confronta le decisioni dell'umano con quelle che il bot di serie avrebbe
+preso nella stessa situazione. Legge i fogli in `partite/`, salta le smazzate
+a carte scoperte, e stampa un rapporto per situazione e per ruolo — non un
+elenco di casi.
+
+```sh
+node --experimental-strip-types packages/specchio/src/specchio.ts
+node --experimental-strip-types packages/specchio/src/specchio.ts --da=partite --ruolo=chiamante
+node --experimental-strip-types packages/specchio/src/specchio.ts --ruolo=difensore
+```
+
+`--da` e' la cartella dei fogli (di serie `partite/`). `--ruolo` filtra
+`chiamante` o `difensore` (e anche `amico` o `liscio`, se serve). Lo stesso
+comando e' `pnpm --filter @mediatore/specchio specchio`.
+
 ## App web (hotseat)
 
 ```sh
@@ -136,8 +188,8 @@ CHOKIDAR_USEPOLLING=1 pnpm --filter @mediatore/web dev   # il watcher guarda inv
 
 Fuori dall'isolamento non serve, e non va usato per abitudine: guardare i file a
 intervalli costa CPU, mentre le notifiche non costano niente. Vale per tutto il
-monorepo: coi collegamenti di pnpm, anche le modifiche a `packages/engine` e
-`packages/bot` arrivano al tavolo senza riavviare niente.
+monorepo: coi collegamenti di pnpm, anche le modifiche a `packages/engine`,
+`packages/bot` e `packages/pensatore` arrivano al tavolo senza riavviare niente.
 
 Un dev server alla volta, pero'. Due server sulla stessa app si dividono la
 stessa cartella `node_modules/.vite`, e quando il secondo ricalcola le
@@ -162,6 +214,18 @@ della chiamata, sotto la mano, sullo stesso tavolo: chiamata normale per chi e'
 di turno, sola, colonna e chi se la sente per chiunque e in qualsiasi momento.
 Chi ha disattivato le animazioni vede le carte comparire ai posti senza volo,
 allo stesso ritmo.
+
+Contro i bot la carta la sceglie il pensatore (`scegliCartaPensando`, 100 mondi,
+tetto 500 ms), su un filo a parte cosi' i ~40 ms di una mossa non inchiodano la
+pagina e restano dentro la pausa gia' prevista (700-1800 ms), non si sommano.
+Chiamata e scarto restano del bot di serie. Dal setup, accanto alle carte
+scoperte, si spegne il pensatore e si torna alle regole di serie, per
+confrontarli giocando.
+
+A smazzata finita, se il dev server e' acceso, la mano va anche in `partite/`
+nella radice del progetto — un file per sessione, con la data nel nome. Se il
+salvataggio fallisce il gioco va avanti: il registro nel browser resta quello
+di sempre. Quei fogli li legge lo specchio.
 
 Se chi ha chiamato e' un bot, il monte e la carta dell'amico se li sbriga al
 tavolo: niente schermata d'attesa, si aspetta come si aspetta il turno di un
