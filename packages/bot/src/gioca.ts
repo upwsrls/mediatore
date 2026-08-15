@@ -3,6 +3,7 @@ import { RANKS, cardPoints, cardStrength, penalitaDaSoglia } from '@mediatore/en
 import {
   cartaPiuAltaRimasta,
   carteNonAncoraViste,
+  carteUscite,
   eFirma,
   eSemeFinito,
   semeDiMano,
@@ -469,6 +470,167 @@ function regaloDiPunti(vista: VistaDelBot, carta: Card): boolean {
  */
 const REGALO_GROSSO = 3;
 
+/**
+ * Da qui in su il chiamante ha trionfi in abbondanza: insistere in un palo
+ * di cui e' gia' vuoto gli regala prese da tagliare, senza costargli la
+ * forza. Con uno o due invece conviene continuare: ogni taglio gliene toglie
+ * uno, e quando li ha finiti le carte dei difensori diventano imprendibili.
+ */
+const MOLTI_TRIONFI_DEL_CHIAMANTE = 3;
+
+/**
+ * Da qui in su, di un palo, ne sono uscite abbastanza da dire che il
+ * chiamante e' corto: su dieci carte, sei gia' viste ne lasciano quattro
+ * in giro, e qualcuno e' rimasto senza.
+ */
+const CARTE_USCITE_PER_ESSERE_CORTO = 6;
+
+function chiamanteDelTavolo(vista: VistaDelBot): number | null {
+  return vista.alliance.kind === 'liscio' ? null : vista.alliance.caller;
+}
+
+/** Chi sta contro il chiamante, non con lui: l'amico non e' di questa parte. */
+function sonoDifensore(vista: VistaDelBot): boolean {
+  const chiamante = chiamanteDelTavolo(vista);
+  if (chiamante === null) return false;
+  return !alleatoDi(vista, chiamante);
+}
+
+/**
+ * Quanti trionfi puo' ancora avere il chiamante. E' un tetto, non un conto
+ * esatto: non gli si vedono le carte, si sa solo quante gliene restano in
+ * mano e quanti trionfi non sono ancora usciti.
+ */
+function trionfiPossibiliDelChiamante(vista: VistaDelBot): number {
+  const chiamante = chiamanteDelTavolo(vista);
+  if (chiamante === null) return 0;
+  if (eSemeFinito(vista, chiamante, vista.trump)) return 0;
+  const inGiro = trionfiRimasti(vista).length;
+  const inMano = vista.carteInMano[chiamante] ?? 0;
+  return Math.min(inGiro, inMano);
+}
+
+function carteUsciteDelPalo(vista: VistaDelBot, palo: Suit): number {
+  return carteUscite(vista).filter((carta) => carta.suit === palo).length;
+}
+
+function ilChiamanteHaRispostoASeme(
+  vista: VistaDelBot,
+  giocate: readonly { player: number; card: Card }[],
+  palo: Suit,
+): boolean {
+  const chiamante = chiamanteDelTavolo(vista);
+  if (chiamante === null) return false;
+  const sua = giocate.find((giocata) => giocata.player === chiamante);
+  return sua !== undefined && sua.card.suit === palo;
+}
+
+/**
+ * Il palo che il difensore ha gia' aperto e in cui il chiamante ha
+ * risposto a seme: li' si insiste, finche' se ne hanno carte.
+ *
+ * Il chiamante ha mostrato di avere quel palo, quindi o ne ha ancora e deve
+ * rispondere — le sue carte si consumano senza tagliare — o e' rimasto
+ * vuoto e deve uccidere, spendendo un trionfo. In tutti e due i casi la
+ * difesa guadagna. Non conta se le carte rimaste comandano il palo: il
+ * punto non e' vincere la base, e' costringerlo a consumare o a scoprirsi.
+ *
+ * Non si insiste se nel frattempo ha mostrato di essere vuoto, ne' se c'e'
+ * una firma laterale che qualcuno puo' ancora tagliare: quella si incassa
+ * prima, che dopo non c'e' piu'.
+ */
+function paloDaInsistere(vista: VistaDelBot, legali: readonly Card[]): Suit | null {
+  if (!sonoDifensore(vista)) return null;
+  const chiamante = chiamanteDelTavolo(vista);
+  if (chiamante === null) return null;
+  if (basiInPericolo(vista).some((carta) => legali.some((legale) => legale.id === carta.id))) {
+    return null;
+  }
+
+  for (let i = vista.preseCompletate.length - 1; i >= 0; i -= 1) {
+    const presa = vista.preseCompletate[i];
+    if (presa === undefined) continue;
+    const prima = presa.cards[0];
+    if (prima === undefined) continue;
+    // L'ha aperto un difensore, non per forza io: se il compagno ha la
+    // base, deve continuare lui. Altrimenti l'attacco muore appena la
+    // scartina perde la presa.
+    if (!alleatoDi(vista, prima.player)) continue;
+    const palo = prima.card.suit;
+    if (palo === vista.trump) continue;
+    if (!ilChiamanteHaRispostoASeme(vista, presa.cards, palo)) continue;
+    if (eSemeFinito(vista, chiamante, palo)) continue;
+    if (!legali.some((carta) => carta.suit === palo)) continue;
+    return palo;
+  }
+  return null;
+}
+
+/**
+ * Quanto quel palo serve a far uccidere il chiamante. Piu' carte se ne sono
+ * gia' viste, piu' e' corto — o vuoto. Se e' vuoto e gli restano pochi
+ * trionfi, e' il palo da aprire: ogni taglio gliene toglie uno. Se e' vuoto
+ * e ne ha ancora tanti, e' il palo da non toccare: gli si regalerebbero
+ * prese.
+ */
+function punteggioPaloPerUccidere(vista: VistaDelBot, palo: Suit): number {
+  if (palo === vista.trump) return Number.NEGATIVE_INFINITY;
+  const chiamante = chiamanteDelTavolo(vista);
+  if (chiamante === null) return 0;
+  const uscite = carteUsciteDelPalo(vista, palo);
+  if (eSemeFinito(vista, chiamante, palo)) {
+    return trionfiPossibiliDelChiamante(vista) >= MOLTI_TRIONFI_DEL_CHIAMANTE
+      ? -1000 + uscite
+      : 1000 + uscite;
+  }
+  return uscite >= CARTE_USCITE_PER_ESSERE_CORTO ? uscite : 0;
+}
+
+/**
+ * Il palo in cui il chiamante e' piu' probabilmente vuoto o corto: quello
+ * dove sono gia' uscite piu' carte, o dove ha gia' scartato invece di
+ * rispondere. A parita' si esce dal seme meno caro, come prima.
+ */
+function paloCheLoFaUccidere(vista: VistaDelBot, legali: readonly Card[]): Suit | null {
+  const semi = [...new Set(legali.map((carta) => carta.suit))];
+  const fuoriTrionfo = semi.filter((seme) => seme !== vista.trump);
+  const candidati = fuoriTrionfo.length > 0 ? fuoriTrionfo : semi;
+
+  let scelti: Suit[] = [];
+  let massimo = Number.NEGATIVE_INFINITY;
+  for (const palo of candidati) {
+    const punti = punteggioPaloPerUccidere(vista, palo);
+    if (punti > massimo + 1e-9) {
+      massimo = punti;
+      scelti = [palo];
+    } else if (punti >= massimo - 1e-9) {
+      scelti.push(palo);
+    }
+  }
+  if (scelti.length === 1) return scelti[0] ?? null;
+  const fraQuelli = legali.filter((carta) => scelti.includes(carta.suit));
+  return semeMenoCaro(vista, fraQuelli);
+}
+
+function dalPaloAperto(
+  vista: VistaDelBot,
+  legali: readonly Card[],
+  palo: Suit,
+  rng: Rng,
+): Card {
+  const delPalo = legali.filter((carta) => carta.suit === palo);
+  const pulite = delPalo.filter((carta) => !regaloDiPunti(vista, carta));
+  const pool = pulite.length > 0 ? pulite : delPalo;
+  const padrone = pool.filter((carta) => ePadrona(vista, carta));
+  if (padrone.length > 0) {
+    return scegliFra(
+      migliori(padrone, (carta) => cardPoints(carta.rank)),
+      rng,
+    );
+  }
+  return scartaLaPiuInutile(vista, pool, rng);
+}
+
 /** Il seme da cui si rischia meno ad aprire: quello dove ho meno punti. */
 function semeMenoCaro(vista: VistaDelBot, legali: readonly Card[]): Suit | null {
   const semi = [...new Set(legali.map((carta) => carta.suit))];
@@ -572,17 +734,28 @@ function apre(vista: VistaDelBot, legali: readonly Card[], rng: Rng): Card {
     );
   }
 
+  // Il difensore, se non ha una padrona da incassare, insiste nel palo
+  // gia' aperto dalla difesa: il chiamante o risponde e si consuma, o
+  // e' vuoto e deve uccidere.
+  if (sonoDifensore(vista)) {
+    const daInsistere = paloDaInsistere(vista, legali);
+    if (daInsistere !== null) return dalPaloAperto(vista, legali, daInsistere, rng);
+  }
+
   const sacrificio = perRendereFirmaLAltra(vista, legali);
   if (sacrificio !== null) return sacrificio;
 
-  // Non restando niente da incassare si apre per uscire di mano, e allora si
-  // esce con una scartina, dal seme dove si rischia meno.
+  // Non restando niente da incassare si apre per uscire di mano. Il
+  // difensore sceglie il palo che fa uccidere il chiamante prima; chi ha
+  // chiamato esce dal seme dove si rischia meno, come prima.
   const fuoriTrionfo = legali.filter((carta) => carta.suit !== vista.trump);
   const pulite = fuoriTrionfo.filter((carta) => !regaloDiPunti(vista, carta));
   if (pulite.length > 0) {
-    const palo = semeMenoCaro(vista, pulite);
-    const dalPaloMagro = pulite.filter((carta) => carta.suit === palo);
-    return scartaLaPiuInutile(vista, dalPaloMagro.length > 0 ? dalPaloMagro : pulite, rng);
+    const palo = sonoDifensore(vista)
+      ? paloCheLoFaUccidere(vista, pulite)
+      : semeMenoCaro(vista, pulite);
+    const dalPalo = pulite.filter((carta) => carta.suit === palo);
+    return scartaLaPiuInutile(vista, dalPalo.length > 0 ? dalPalo : pulite, rng);
   }
 
   // Fuori dal trionfo paga tutto: allora si guarda quanto costa pagare, e nel

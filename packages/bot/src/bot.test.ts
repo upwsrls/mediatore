@@ -1978,6 +1978,179 @@ describe("quello che il bot non puo' sapere", () => {
   });
 });
 
+/**
+ * I difensori devono far uccidere il chiamante: insistere nel palo gia'
+ * aperto se ha risposto a seme, e aprire dove e' piu' probabilmente corto.
+ */
+describe('il difensore fa uccidere il chiamante', () => {
+  const COPPE: Suit = 'coppe';
+
+  it('apre a spade, il chiamante risponde a seme, alla base dopo riapre a spade', () => {
+    const state = giocate(
+      tavolo({
+        players: 3,
+        trump: COPPE,
+        alliance: { kind: 'monte', caller: 1, chiamata: 'normale' },
+        mani: [
+          [carta('spade', 7), carta('spade', 3), carta('denari', 're')],
+          [carta('spade', 4), carta(COPPE, 2), carta('bastoni', 2)],
+          [carta('spade', 5), carta(COPPE, 3), carta('bastoni', 3)],
+        ],
+        leader: 0,
+      }),
+      [carta('spade', 7), carta('spade', 4), carta('spade', 5)],
+    );
+
+    expect(state.turn).toBe(0);
+    expect(scelta(state).suit).toBe('spade');
+  });
+
+  it('se ha aperto il compagno e il chiamante ha risposto, continua lui a spade', () => {
+    const state = giocate(
+      tavolo({
+        players: 3,
+        trump: COPPE,
+        alliance: { kind: 'monte', caller: 1, chiamata: 'normale' },
+        mani: [
+          [carta('spade', 7), carta('spade', 3), carta('denari', 're')],
+          [carta('spade', 4), carta(COPPE, 2), carta('bastoni', 2)],
+          [carta('spade', 2), carta(COPPE, 3), carta('bastoni', 3)],
+        ],
+        leader: 2,
+      }),
+      [carta('spade', 2), carta('spade', 7), carta('spade', 4)],
+    );
+
+    expect(state.turn).toBe(0);
+    expect(scelta(state).suit).toBe('spade');
+  });
+
+  it('se il chiamante ha tagliato la prima base, non insiste in quel palo', () => {
+    const state = giocate(
+      tavolo({
+        players: 4,
+        trump: COPPE,
+        alliance: { kind: 'monte', caller: 1, chiamata: 'normale' },
+        mani: [
+          [carta('spade', 7), carta('denari', 'asso'), carta('spade', 'fante'), carta('spade', 3), carta('bastoni', 2)],
+          [carta(COPPE, 5), carta('denari', 4), carta('bastoni', 4), carta('bastoni', 5), carta('bastoni', 6)],
+          [carta('spade', 2), carta('denari', 3), carta(COPPE, 2), carta('bastoni', 7), carta('bastoni', 'asso')],
+          [carta('spade', 5), carta('denari', 5), carta(COPPE, 3), carta('bastoni', 're'), carta('bastoni', 'cavallo')],
+        ],
+        leader: 0,
+      }),
+      [
+        carta('spade', 7),
+        carta(COPPE, 5),
+        carta('spade', 2),
+        carta('spade', 5),
+        carta('denari', 4),
+        carta('denari', 3),
+        carta('denari', 5),
+        carta('denari', 'asso'),
+      ],
+    );
+
+    expect(state.turn).toBe(0);
+    expect(eSemeFinito(vistaDaStato(state, 0), 1, 'spade')).toBe(true);
+    expect(scelta(state).suit).not.toBe('spade');
+  });
+
+  it('senza piu carte di quel palo apre dove il chiamante e piu probabilmente corto', () => {
+    // Due giri di denari a tre: sei carte uscite, il chiamante e' corto.
+    // Il bot non ha piu' spade da insistere, e fra denari e bastoni deve
+    // riaprire a denari.
+    const state = giocate(
+      tavolo({
+        players: 3,
+        trump: COPPE,
+        alliance: { kind: 'monte', caller: 1, chiamata: 'normale' },
+        mani: [
+          [carta('denari', 2), carta('denari', 3), carta('denari', 5), carta(COPPE, 7), carta('bastoni', 2)],
+          [carta('denari', 4), carta('denari', 6), carta(COPPE, 4), carta('bastoni', 3), carta('bastoni', 4)],
+          [carta('denari', 7), carta('denari', 'asso'), carta(COPPE, 2), carta(COPPE, 3), carta('bastoni', 5)],
+        ],
+        leader: 2,
+      }),
+      [
+        carta('denari', 7),
+        carta('denari', 2),
+        carta('denari', 4),
+        carta('denari', 'asso'),
+        carta('denari', 3),
+        carta('denari', 6),
+        carta(COPPE, 2),
+        carta(COPPE, 7),
+        carta(COPPE, 4),
+      ],
+    );
+
+    expect(state.turn).toBe(0);
+    expect(scelta(state).suit).toBe('denari');
+  });
+
+  it('se il chiamante e vuoto e ha ancora molti trionfi, non insiste', () => {
+    const state = giocate(
+      tavolo({
+        players: 4,
+        trump: COPPE,
+        alliance: { kind: 'monte', caller: 1, chiamata: 'normale' },
+        mani: [
+          [carta('spade', 2), carta('denari', 'asso'), carta('spade', 'fante'), carta('bastoni', 2), carta('bastoni', 3)],
+          [carta(COPPE, 3), carta('denari', 4), carta(COPPE, 4), carta(COPPE, 5), carta(COPPE, 6)],
+          [carta('spade', 7), carta('denari', 3), carta(COPPE, 2), carta('bastoni', 4), carta('bastoni', 5)],
+          [carta('spade', 5), carta('denari', 5), carta('denari', 6), carta('bastoni', 6), carta('bastoni', 7)],
+        ],
+        leader: 2,
+      }),
+      [
+        carta('spade', 7),
+        carta('spade', 5),
+        carta('spade', 2),
+        carta(COPPE, 3),
+        carta('denari', 4),
+        carta('denari', 3),
+        carta('denari', 5),
+        carta('denari', 'asso'),
+      ],
+    );
+
+    expect(state.turn).toBe(0);
+    const vista = vistaDaStato(state, 0);
+    expect(eSemeFinito(vista, 1, 'spade')).toBe(true);
+    expect(Math.min(trionfiRimasti(vista).length, vista.carteInMano[1] ?? 0)).toBeGreaterThanOrEqual(
+      3,
+    );
+    expect(scelta(state).suit).not.toBe('spade');
+  });
+
+  it('nel caso reale, alla seconda base il difensore riapre a spade', () => {
+    // A quattro, trionfo coppe. Il difensore apre con la maniglia di
+    // spade, il chiamante risponde col 4: ha spade e non puo' tagliare.
+    // Restano fante, 3 e 6 di spade e il re di denari. Deve insistere
+    // a spade, non cambiare palo.
+    const state = giocate(
+      tavolo({
+        players: 4,
+        trump: COPPE,
+        alliance: { kind: 'monte', caller: 1, chiamata: 'normale' },
+        mani: [
+          [carta('spade', 7), carta('spade', 'fante'), carta('spade', 3), carta('spade', 6), carta('denari', 're')],
+          [carta('spade', 4), carta(COPPE, 2), carta('denari', 2), carta('bastoni', 2), carta('bastoni', 3)],
+          [carta('spade', 5), carta(COPPE, 3), carta('denari', 3), carta('bastoni', 4), carta('bastoni', 5)],
+          [carta('spade', 2), carta(COPPE, 4), carta('denari', 4), carta('bastoni', 6), carta('bastoni', 'fante')],
+        ],
+        leader: 0,
+      }),
+      [carta('spade', 7), carta('spade', 4), carta('spade', 5), carta('spade', 2)],
+    );
+
+    expect(state.turn).toBe(0);
+    expect(scelta(state).suit).toBe('spade');
+    expect(scelta(state).id).not.toBe('denari-re');
+  });
+});
+
 /** Una smazzata intera con il bot in ogni posto: qui conta solo la legalita'. */
 function smazzataDelBot(seed: number): number {
   const rng = createRng(seed);
