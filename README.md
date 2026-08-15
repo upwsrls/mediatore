@@ -46,6 +46,8 @@ nelle varianti a monte (3, 4, 5 giocatori) e amico (5 giocatori).
   finire la smazzata, con le regole di serie a far giocare gli altri.
 - `packages/specchio` — legge le partite giocate e le confronta col bot di
   serie, raggruppando le differenze per situazione e per ruolo.
+- `packages/imitatore` — parte dalle regole di serie e impara solo le
+  correzioni dove l'umano gioca sistematicamente diverso.
 - `apps/simulator` — simulatore da terminale: fuzzer massivo e modalita'
   interattiva. Dipende solo da `@mediatore/engine` e dai builtin di Node.
 - `apps/web` — PWA React in modalita' hotseat: tutti i giocatori sullo stesso
@@ -165,6 +167,24 @@ node --experimental-strip-types packages/specchio/src/specchio.ts --ruolo=difens
 `--da` e' la cartella dei fogli (di serie `partite/`). `--ruolo` filtra
 `chiamante` o `difensore` (e anche `amico` o `liscio`, se serve). Lo stesso
 comando e' `pnpm --filter @mediatore/specchio specchio`.
+
+## Imitatore
+
+Parte dalle regole di `packages/bot` e impara solo a correggerle dove
+l'umano, nelle partite in `partite/`, sceglie in modo netto e ripetuto
+una cosa diversa. Pochi casi o un umano incoerente non spostano niente:
+imparare rumore e' peggio di non imparare. A ogni lancio rilegge tutte
+le smazzate (salta le carte scoperte) e riscrive `packages/imitatore/imparato.json`.
+
+```sh
+node --experimental-strip-types packages/imitatore/src/impara.ts --da=partite
+node --experimental-strip-types packages/imitatore/src/sfida.ts --smazzate=250 --seed=1
+```
+
+La sfida e' quella del pensatore: stessi mazzi, posti alternati e
+scambiati, contro il bot di serie. Stampa il saldo per ruolo e per
+tavolo, e quante correzioni ha imparato su quanti casi. Chiamata e
+scarto restano di serie. Lo stesso comando e' `pnpm --filter @mediatore/imitatore sfida`.
 
 ## App web (hotseat)
 

@@ -9,6 +9,9 @@ coverage
 # Smazzate giocate, scritte dal dev server: dati di lavoro, non codice
 partite/
 
+# Correzioni ricalcolate dalle partite a ogni lancio
+packages/imitatore/imparato.json
+
 # Originali scaricati da Commons: si riscaricano con prepara-carte.mjs
 apps/web/scripts/.originali
 
