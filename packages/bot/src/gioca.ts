@@ -719,6 +719,17 @@ function haGiaAperto(vista: VistaDelBot): boolean {
   return vista.preseCompletate.some((presa) => presa.cards[0]?.player === vista.io);
 }
 
+/**
+ * L'amico, nascosto o scoperto. Lo si e' se si ha in mano la carta
+ * chiamata, o se si e' gia' quella carta giocata: un difensore che
+ * NON ce l'ha non passa di qui, neanche in variante amico.
+ */
+function eLAmico(vista: VistaDelBot): boolean {
+  if (sonoLAmicoNascosto(vista)) return true;
+  const { alliance } = vista;
+  return alliance.kind === 'amico' && alliance.friend === vista.io;
+}
+
 function cartaChiamataInMano(vista: VistaDelBot, legali: readonly Card[]): Card | null {
   const { alliance } = vista;
   if (alliance.kind !== 'amico') return null;
@@ -774,6 +785,11 @@ function passaLaManoAlChiamante(
   legali: readonly Card[],
   rng: Rng,
 ): Card | null {
+  // Prima di tutto: questa logica e' dell'amico, non di chi sta contro.
+  // Lo si riconosce dalla carta chiamata in mano (o gia' giocata). Senza
+  // quella carta si e' difensori, e i trionfi restano per uccidere.
+  if (!eLAmico(vista)) return null;
+
   const chiamata = cartaChiamataInMano(vista, legali);
   if (chiamata !== null && eManigliaDiTrionfo(vista, chiamata)) return chiamata;
 
@@ -873,12 +889,20 @@ function apre(vista: VistaDelBot, legali: readonly Card[], rng: Rng): Card {
   // libera. L'asso laterale invece sono quattro punti che se ne vanno insieme
   // alla presa. Era da qui che usciva l'asso secco anche quando in mano c'era
   // un 2 di trionfo che non serviva a niente.
+  //
+  // Lo fa il chiamante. Il difensore no: tirare l'unico trionfo con le
+  // laterali alte e' un'arrassata, e vale lo stesso freno di sempre — anche
+  // a 5 con l'amico, dove questo ramo non guardava la variante.
   const scartineDiTrionfo = legali.filter(
     (carta) => carta.suit === vista.trump && cardPoints(carta.rank) === 0,
   );
   const regaloPiuMagro = Math.min(...fuoriTrionfo.map((carta) => cardPoints(carta.rank)));
   const paganoTutti = fuoriTrionfo.length === 0 || regaloPiuMagro >= REGALO_GROSSO;
-  if (scartineDiTrionfo.length > 0 && paganoTutti) {
+  if (
+    scartineDiTrionfo.length > 0 &&
+    paganoTutti &&
+    (sonoIlChiamante(vista) || convieneTirareTrionfo(vista))
+  ) {
     return scartaLaPiuInutile(vista, scartineDiTrionfo, rng);
   }
 

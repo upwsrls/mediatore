@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   contoDellaPosta,
   costo,
+  domandaConfermaSpeciale,
   posta,
   quantoVale,
   sogliaDi,
@@ -27,6 +28,27 @@ describe('posta', () => {
     expect(posta(null, true)).toBe(2);
     expect(posta('colonna', true)).toBe(5);
     expect(posta('chiSeLaSente', true)).toBe(6);
+  });
+});
+
+describe('domandaConfermaSpeciale', () => {
+  it('dice il nome e quanto si rischia, in numeri', () => {
+    expect(domandaConfermaSpeciale('sola')).toBe(
+      'sei sicuro di dichiarare la SOLA? vale 3 volte',
+    );
+    expect(domandaConfermaSpeciale('colonna')).toBe(
+      'sei sicuro di dichiarare la COLONNA? vale 4 volte',
+    );
+    expect(domandaConfermaSpeciale('chiSeLaSente')).toBe(
+      'sei sicuro di dichiarare CHI SE LA SENTE? vale 5 volte',
+    );
+  });
+
+  it('prende il moltiplicatore dall engine, non se lo inventa', () => {
+    expect(domandaConfermaSpeciale('sola')).toContain(`${moltiplicatore('sola')} volte`);
+    expect(domandaConfermaSpeciale('chiSeLaSente')).toContain(
+      `${moltiplicatore('chiSeLaSente')} volte`,
+    );
   });
 });
 

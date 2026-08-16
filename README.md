@@ -235,12 +235,12 @@ di turno, sola, colonna e chi se la sente per chiunque e in qualsiasi momento.
 Chi ha disattivato le animazioni vede le carte comparire ai posti senza volo,
 allo stesso ritmo.
 
-Contro i bot la carta la sceglie il pensatore (`scegliCartaPensando`, 100 mondi,
-tetto 500 ms), su un filo a parte cosi' i ~40 ms di una mossa non inchiodano la
-pagina e restano dentro la pausa gia' prevista (700-1800 ms), non si sommano.
-Chiamata e scarto restano del bot di serie. Dal setup, accanto alle carte
-scoperte, si spegne il pensatore e si torna alle regole di serie, per
-confrontarli giocando.
+Contro i bot la carta la scelgono le regole di `packages/bot`. Dal setup, accanto
+alle carte scoperte, si accende il pensatore (`scegliCartaPensando`, 100 mondi,
+tetto 500 ms) per provarlo: gira su un filo a parte, dentro la pausa gia'
+prevista (700-1800 ms). Di serie resta spento, perche' a 100 mondi cambia la
+scelta delle regole troppo spesso e una parte di quei cambi e' rumore.
+Chiamata e scarto restano del bot di serie in tutti e due i casi.
 
 A smazzata finita, se il dev server e' acceso, la mano va anche in `partite/`
 nella radice del progetto — un file per sessione, con la data nel nome. Se il

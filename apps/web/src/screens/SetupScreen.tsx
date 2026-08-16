@@ -25,7 +25,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
   const [puntoDiVista, setPuntoDiVista] = useState(0);
   const [controBot, setControBot] = useState(false);
   const [carteScoperte, setCarteScoperte] = useState(false);
-  const [botPensante, setBotPensante] = useState(true);
+  const [botPensante, setBotPensante] = useState(false);
   const [livello, setLivello] = useState<Livello>('principiante');
   const audio = useAudio();
 
@@ -84,7 +84,7 @@ export function SetupScreen({ onStart }: Props): ReactElement {
               checked={botPensante}
               onChange={(evento) => scegli(botPensante, evento.target.checked, setBotPensante)}
             />
-            bot pensante (simula le mosse; spegni per il bot di serie)
+            bot pensante (simula le mosse; di serie restano le regole)
           </label>
         </>
       )}

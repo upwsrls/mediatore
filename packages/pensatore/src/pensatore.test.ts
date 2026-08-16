@@ -12,7 +12,7 @@ import {
 } from '@mediatore/engine';
 import { describe, expect, it } from 'vitest';
 import { mondiPossibili } from './mondi.ts';
-import { scegliCartaPensando } from './pensa.ts';
+import { misuraCarte, scegliCartaPensando } from './pensa.ts';
 import { simulaSmazzata, statoDalMondo } from './simula.ts';
 import { TAVOLI, giocaSmazzata } from './smazzata.ts';
 
@@ -208,11 +208,28 @@ describe('la scelta pensante', () => {
     const scelta = scegliCartaPensando(vista, { mondi: 4, tempoMs: 20_000 }, createRng(7));
     expect(vista.legali.some((carta) => carta.id === scelta.id)).toBe(true);
   });
+
+  it('la misura tiene una riga per ogni carta legale', () => {
+    const vista = vistaAMeta(15);
+    const misura = misuraCarte(vista, { mondi: 4, tempoMs: 20_000 }, createRng(7));
+    expect(misura.perCarta.map((c) => c.carta.id).sort()).toEqual(
+      [...vista.legali].map((c) => c.id).sort(),
+    );
+    expect(misura.mondi).toBe(4);
+    expect(misura.perCarta.every((c) => c.vinte <= misura.mondi)).toBe(true);
+  });
 });
 
 describe('la casualita passa dall rng', () => {
   it('il sorgente non chiama Math.random', () => {
-    for (const file of ['./mondi.ts', './simula.ts', './pensa.ts', './smazzata.ts', './sfida.ts']) {
+    for (const file of [
+      './mondi.ts',
+      './simula.ts',
+      './pensa.ts',
+      './smazzata.ts',
+      './sfida.ts',
+      './diagnosi.ts',
+    ]) {
       expect(legge(file)).not.toMatch(/Math\.random/);
     }
   });

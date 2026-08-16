@@ -10,6 +10,7 @@
   },
   "scripts": {
     "sfida": "node --experimental-strip-types src/sfida.ts",
+    "diagnosi": "node --experimental-strip-types src/diagnosi.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

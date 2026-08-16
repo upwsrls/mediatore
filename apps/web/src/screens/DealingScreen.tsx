@@ -2,12 +2,19 @@ import type { CallAction, CallState, Card as CartaEngine } from '@mediatore/engi
 import { currentCaller } from '@mediatore/engine';
 import type { CSSProperties, ReactElement } from 'react';
 import { useEffect, useState } from 'react';
+import { useAudio } from '../audio/useAudio';
 import { Card } from '../components/Card';
 import { IntestazioneTavolo } from '../components/IntestazioneTavolo';
 import { MonteScopertoInTavola } from '../components/MonteScopertoInTavola';
 import { MonteInTavola, PostoTavolo, monteInCima } from '../components/Tavolo';
 import { DORSO } from '../carte/immagini';
-import { NOMI_CHIAMATA, SPECIALI, costo } from '../chiamate';
+import {
+  NOMI_CHIAMATA,
+  SPECIALI,
+  costo,
+  domandaConfermaSpeciale,
+  type Speciale,
+} from '../chiamate';
 import { CARTA_DISTRIBUITA_MS, chiRiceve, quanteNeHa } from '../distribuzione';
 import { nomeGiocatore } from '../labels';
 import { conAiuti, type Livello } from '../livello';
@@ -58,9 +65,13 @@ export function DealingScreen({
   onCarteScoperte,
   onLivello,
 }: Props): ReactElement {
+  const audio = useAudio();
   // Chi dichiara fuori turno: finche' non e' scelto vale chi e' di turno,
   // cosi' la riga non impone una scelta a chi sta solo chiamando normale.
   const [dichiarante, setDichiarante] = useState<number | null>(null);
+  // Una delle tre speciali in attesa del secondo tocco. CHIAMA e PASSO
+  // non passano di qui: quelli sono le mosse normali e un tocco basta.
+  const [inAttesa, setInAttesa] = useState<Speciale | null>(null);
 
   const distribuendo = session.phase === 'distribuzione';
   // Nessuno ha aperto: il monte si scopre qui, sullo stesso tavolo della
@@ -71,6 +82,12 @@ export function DealingScreen({
   const postoDi = (posizione: Posizione): number => posizioni.indexOf(posizione);
 
   const diTurno = currentCaller(session.call);
+
+  const chiDichiara = session.umano ?? dichiarante ?? diTurno ?? session.puntoDiVista;
+
+  useEffect(() => {
+    setInAttesa(null);
+  }, [diTurno, chiDichiara, session.call.caller, session.call.chiamata]);
 
   // Contro i bot sotto c'e' sempre la mano di chi gioca davvero. In hotseat il
   // telefono cambia mani: mentre si distribuisce lo tiene chi siede in basso,
@@ -109,8 +126,37 @@ export function DealingScreen({
 
   const conMonte = session.config.monteSize > 0;
   const scoperta = session.scoperta;
-  const chiDichiara = session.umano ?? dichiarante ?? diTurno ?? session.puntoDiVista;
   const spia = session.carteScoperte && session.umano !== null;
+
+  function chiamaNormale(): void {
+    if (diTurno === null) return;
+    setInAttesa(null);
+    onDecide(diTurno, { tipo: 'chiama', chiamata: 'normale' });
+  }
+
+  function passa(): void {
+    if (diTurno === null) return;
+    setInAttesa(null);
+    onDecide(diTurno, { tipo: 'passo' });
+  }
+
+  function chiediSpeciale(chiamata: Speciale): void {
+    // Stesso tocco del primo alzare una carta: la dichiarazione parte dopo.
+    audio.suona('scelta');
+    setInAttesa(chiamata);
+  }
+
+  function confermaSpeciale(): void {
+    if (inAttesa === null) return;
+    const chiamata = inAttesa;
+    setInAttesa(null);
+    onDecide(chiDichiara, { tipo: 'chiama', chiamata });
+  }
+
+  function lasciaStare(): void {
+    audio.suona('scelta');
+    setInAttesa(null);
+  }
 
   // Chi ha chiamato sceglie gli scarti o l'amico: al tavolo si resta seduti e
   // si aspetta, come si aspetta il turno di chiunque altro. Delle sue carte
@@ -301,17 +347,13 @@ export function DealingScreen({
         >
           {(tocca || distribuendo) && diTurno !== null && (
             <div className="riga-bottoni">
-              <button
-                type="button"
-                className="bottone-grande"
-                onClick={() => onDecide(diTurno, { tipo: 'chiama', chiamata: 'normale' })}
-              >
+              <button type="button" className="bottone-grande" onClick={chiamaNormale}>
                 CHIAMA
               </button>
               <button
                 type="button"
                 className="bottone-grande bottone-secondario"
-                onClick={() => onDecide(diTurno, { tipo: 'passo' })}
+                onClick={passa}
               >
                 PASSO
               </button>
@@ -338,19 +380,38 @@ export function DealingScreen({
             </div>
           )}
 
-          <div className="riga-bottoni riga-speciali">
-            {SPECIALI.map((chiamata) => (
-              <button
-                key={chiamata}
-                type="button"
-                className="bottone-grande bottone-dichiarazione"
-                onClick={() => onDecide(chiDichiara, { tipo: 'chiama', chiamata })}
-              >
-                <span className="costo">{costo(chiamata)}</span>
-                <span className="nome-dichiarazione">{NOMI_CHIAMATA[chiamata]}</span>
+          {/* La conferma sta qui, al posto delle tre: stessa riga, stessa
+              altezza. Una riga in piu' alzerebbe i bottoni e sposterebbe
+              il tavolo, come e' gia' successo con il registro. */}
+          {inAttesa === null ? (
+            <div className="riga-bottoni riga-speciali">
+              {SPECIALI.map((chiamata) => (
+                <button
+                  key={chiamata}
+                  type="button"
+                  className="bottone-grande bottone-dichiarazione"
+                  onClick={() => chiediSpeciale(chiamata)}
+                >
+                  <span className="costo">{costo(chiamata)}</span>
+                  <span className="nome-dichiarazione">{NOMI_CHIAMATA[chiamata]}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="riga-bottoni riga-speciali riga-conferma">
+              <p className="domanda-dichiarazione">{domandaConfermaSpeciale(inAttesa)}</p>
+              <button type="button" className="bottone-grande" onClick={confermaSpeciale}>
+                si, dichiaro
               </button>
-            ))}
-          </div>
+              <button
+                type="button"
+                className="bottone-grande bottone-secondario"
+                onClick={lasciaStare}
+              >
+                no, lascia stare
+              </button>
+            </div>
+          )}
 
           {conAiuti(session.livello) && (
             <p className="nota nota-dichiarazioni">

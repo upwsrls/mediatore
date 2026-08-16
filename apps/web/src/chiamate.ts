@@ -15,6 +15,19 @@ export const NOMI_CHIAMATA: Record<TipoChiamata, string> = {
 /** Le tre che si dichiarano fuori turno, dalla meno alla piu' cara. */
 export const SPECIALI: TipoChiamata[] = ['sola', 'colonna', 'chiSeLaSente'];
 
+export type Speciale = (typeof SPECIALI)[number];
+
+/**
+ * La domanda prima di una speciale: il nome e quanto vale, in numeri.
+ * Senza il costo non si capisce cosa si sta rischiando.
+ */
+export function domandaConfermaSpeciale(chiamata: Speciale): string {
+  const volte = moltiplicatore(chiamata);
+  const nome = NOMI_CHIAMATA[chiamata].toUpperCase();
+  const cosa = chiamata === 'chiSeLaSente' ? nome : `la ${nome}`;
+  return `sei sicuro di dichiarare ${cosa}? vale ${volte} volte`;
+}
+
 /**
  * Da una a sei partite: sei e' il massimo che si possa arrivare a giocare,
  * la chi se la sente con il cappotto.

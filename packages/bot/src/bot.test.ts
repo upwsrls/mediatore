@@ -2400,6 +2400,90 @@ describe('a 5 con l amico', () => {
     expect(sonoLAmicoNascosto(vistaDaStato(state, 3))).toBe(false);
     expect(scelta(state).suit).not.toBe(TRIONFO);
   });
+
+  it('il difensore con un solo trionfo e carte alte non apre a trionfo', () => {
+    // Le laterali sono tutte a punti e non comandano il palo: il ramo
+    // che brucia la scartina di trionfo al posto dell'asso secco e' del
+    // chiamante. Il difensore quel trionfo lo tiene per uccidere.
+    const state = tavoloAmico({
+      caller: 0,
+      friend: null,
+      leader: 3,
+      mani: [
+        [carta(TRIONFO, 7), carta(TRIONFO, 'asso'), carta('spade', 7), carta('denari', 2)],
+        [carta('spade', 3), carta('denari', 3), carta('denari', 7), carta('coppe', 2)],
+        [CHIAMATA, carta('spade', 5), carta('denari', 4)],
+        [
+          carta(TRIONFO, 5),
+          carta('coppe', 'asso'),
+          carta('coppe', 're'),
+          carta('spade', 'asso'),
+          carta('denari', 're'),
+        ],
+        [carta('spade', 2), carta('coppe', 3), carta('denari', 6)],
+      ],
+    });
+    const vista = vistaDaStato(state, 3);
+    expect(sonoLAmicoNascosto(vista)).toBe(false);
+    expect(vista.mano.filter((carta) => carta.suit === TRIONFO)).toHaveLength(1);
+    expect(scelta(state).suit).not.toBe(TRIONFO);
+  });
+
+  it('nel caso reale il difensore apre a spade, non col suo unico trionfo', () => {
+    // A 5 amico, trionfo denari, quarta base. Il posto 3 ha quattro
+    // spade — maniglia e asso compresi — e il 5 di denari. I trionfi
+    // in giro sono ancora tre. Prima apriva a denari; il chiamante
+    // ci metteva il re e si portava via l'unico coltello della difesa.
+    const DENARI: Suit = 'denari';
+    const mani = [
+      [
+        carta('coppe', 7), carta(DENARI, 2), carta('coppe', 6), carta('bastoni', 2),
+        carta('bastoni', 're'), carta('coppe', 'cavallo'), carta('coppe', 5), carta('coppe', 4),
+      ],
+      [
+        carta('bastoni', 4), carta('coppe', 3), carta('bastoni', 6), carta(DENARI, 're'),
+        carta('bastoni', 'cavallo'), carta('spade', 3), carta(DENARI, 7), carta(DENARI, 'asso'),
+      ],
+      [
+        carta('spade', 're'), carta('spade', 2), carta(DENARI, 6), carta(DENARI, 'cavallo'),
+        carta('coppe', 'fante'), carta('bastoni', 7), carta('bastoni', 3), carta('coppe', 'asso'),
+      ],
+      [
+        carta(DENARI, 3), carta(DENARI, 4), carta('bastoni', 5), carta('spade', 7),
+        carta('spade', 'cavallo'), carta('spade', 'asso'), carta('spade', 6), carta(DENARI, 5),
+      ],
+      [
+        carta(DENARI, 'fante'), carta('spade', 4), carta('bastoni', 'asso'), carta('coppe', 're'),
+        carta('spade', 'fante'), carta('spade', 5), carta('coppe', 2), carta('bastoni', 'fante'),
+      ],
+    ];
+    const inizio = tavolo({
+      players: 5,
+      variant: 'amico',
+      trump: DENARI,
+      alliance: { kind: 'amico', caller: 1, calledCard: 'bastoni-7', friend: null },
+      mani,
+      monte: [],
+      leader: 2,
+    });
+    const state = giocate(inizio, [
+      carta(DENARI, 6), carta(DENARI, 3), carta(DENARI, 'fante'), carta(DENARI, 2), carta(DENARI, 7),
+      carta('bastoni', 'cavallo'), carta('bastoni', 7), carta('bastoni', 5),
+      carta('bastoni', 'fante'), carta('bastoni', 2),
+      carta('bastoni', 3), carta(DENARI, 4), carta('bastoni', 'asso'),
+      carta('bastoni', 're'), carta('bastoni', 4),
+    ]);
+    expect(state.turn).toBe(3);
+    expect(state.alliance.kind === 'amico' ? state.alliance.friend : null).toBe(2);
+    const vista = vistaDaStato(state, 3);
+    expect(sonoLAmicoNascosto(vista)).toBe(false);
+    expect(trionfiAvversariRimasti(vista)).toBe(3);
+    expect(vista.mano.map((carta) => carta.id).sort()).toEqual(
+      ['denari-5', 'spade-6', 'spade-7', 'spade-asso', 'spade-cavallo'].sort(),
+    );
+    expect(scelta(state).suit).toBe('spade');
+    expect(scelta(state).id).not.toBe('denari-5');
+  });
 });
 
 /** Una smazzata intera con il bot in ogni posto: qui conta solo la legalita'. */
