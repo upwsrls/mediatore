@@ -4,13 +4,13 @@ import type { ReactElement } from 'react';
 import { PartiteRegistrate } from '../components/PartiteRegistrate';
 import { PlayerName } from '../components/PlayerName';
 import { PuntoDiVista } from '../components/PuntoDiVista';
-import { StatusLine } from '../components/StatusLine';
 import {
   NOMI_CHIAMATA,
   chiamataDi,
   contoDellaPosta,
   spiegazioniSupplementi,
 } from '../chiamate';
+import { sommaDelConto } from '../contoTavolo';
 import { useInCima } from '../inCima';
 import { nomeGiocatore } from '../labels';
 import { schieramenti } from '../roles';
@@ -30,12 +30,38 @@ function conSegno(valore: number): string {
   return valore > 0 ? `+${valore}` : `${valore}`;
 }
 
-function Quote({ settlement, state }: { settlement: number[]; state: HandState | null }): ReactElement {
+/**
+ * Una riga per giocatore: nome, punti, quota di adesso e totale del tavolo.
+ * Senza punti — smazzata non giocata — restano nome, quota e totale.
+ */
+function ContoGiocatori({
+  settlement,
+  totali,
+  punti,
+  state,
+}: {
+  settlement: number[];
+  totali: number[];
+  punti?: number[];
+  state: HandState | null;
+}): ReactElement {
+  const conPunti = punti !== undefined;
   return (
-    <ul className="lista">
+    <ul className={conPunti ? 'lista-conto' : 'lista-conto lista-conto-solo-quote'}>
+      <li className="lista-conto-capo" aria-hidden="true">
+        <span />
+        {conPunti && <span>punti</span>}
+        <span>quota</span>
+        <span>totale</span>
+      </li>
       {settlement.map((quota, seat) => (
         <li key={seat}>
-          <PlayerName seat={seat} state={state} />: <strong>{conSegno(quota)}</strong>
+          <span className="lista-conto-nome">
+            <PlayerName seat={seat} state={state} />
+          </span>
+          {conPunti && <strong className="lista-conto-num">{punti[seat] ?? 0}</strong>}
+          <strong className="lista-conto-num">{conSegno(quota)}</strong>
+          <strong className="lista-conto-num">{conSegno(totali[seat] ?? 0)}</strong>
         </li>
       ))}
     </ul>
@@ -64,11 +90,11 @@ export function EndScreen({
 
   const score = scoreHand(state);
   const settlement = settle(state, score);
-  const somma = settlement.reduce((totale, quota) => totale + quota, 0);
+  const somma = sommaDelConto(settlement);
+  const sommaTotali = sommaDelConto(session.totali);
 
   return (
     <section className="schermata schermata-conteggio">
-      <StatusLine state={state} />
       <h2>fine giocata</h2>
 
       {/* Il colpo piu' raro del gioco: se c'e' stato, si vede prima di tutto. */}
@@ -77,14 +103,15 @@ export function EndScreen({
       )}
 
       <div className="blocco">
-        <p className="etichetta">punti</p>
-        <ul className="lista">
-          {score.perPlayer.map((punti, seat) => (
-            <li key={seat}>
-              <PlayerName seat={seat} state={state} />: <strong>{punti}</strong>
-            </li>
-          ))}
-        </ul>
+        <ContoGiocatori
+          settlement={settlement}
+          totali={session.totali}
+          punti={score.perPlayer}
+          state={state}
+        />
+        <p className="nota">
+          somma delle quote: {somma} · somma dei totali: {sommaTotali}
+        </p>
       </div>
 
       <div className="blocco">
@@ -114,12 +141,6 @@ export function EndScreen({
             </p>
           </>
         )}
-      </div>
-
-      <div className="blocco">
-        <p className="etichetta">quote</p>
-        <Quote settlement={settlement} state={state} />
-        <p className="nota">somma delle quote: {somma}</p>
       </div>
 
       <ContoAllaRovescia secondi={secondiAllaRipartenza} />
@@ -283,9 +304,6 @@ function FineScaduta({
 
   return (
     <section className="schermata schermata-conteggio">
-      <div className="riga-stato">
-        {nomeGiocatore(caller)} ha detto CHI SE LA SENTE — non se l e sentita nessuno
-      </div>
       <h2>fine giocata</h2>
 
       <div className="blocco">
@@ -297,10 +315,10 @@ function FineScaduta({
       </div>
 
       <div className="blocco">
-        <p className="etichetta">quote</p>
-        <Quote settlement={settlement} state={null} />
+        <ContoGiocatori settlement={settlement} totali={session.totali} state={null} />
         <p className="nota">
-          somma delle quote: {settlement.reduce((totale, quota) => totale + quota, 0)}
+          somma delle quote: {sommaDelConto(settlement)} · somma dei totali:{' '}
+          {sommaDelConto(session.totali)}
         </p>
       </div>
 

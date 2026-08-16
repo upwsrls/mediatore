@@ -88,11 +88,7 @@ h3 {
 /*
  * Solo il riepilogo scorre, e solo su e giu': ci sta piu' di quanto un
  * telefono tenga in un colpo d'occhio. Lo scorrimento e' qui dentro, non
- * sulla pagina, cosi' il tavolo nuovo nasce in cima. overflow-y: auto da
- * solo trasforma overflow-x in auto, e un margine di troppo apre lo
- * scorrimento laterale. La riga di stato ha -12px ai lati per arrivare al
- * bordo dell'app: e' lei che sforava, non il monte ne' le quote. Il testo
- * ci sta; si taglia solo quel risvolto.
+ * sulla pagina, cosi' il tavolo nuovo nasce in cima.
  */
 .schermata-conteggio {
   flex: 1;
@@ -100,13 +96,6 @@ h3 {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-
-/* Senza quei -12px la riga sta larga quanto il resto, e non c'e' piu'
-   niente da scorrere di lato. Sul tavolo il risvolto resta: li' non si scorre. */
-.schermata-conteggio .riga-stato {
-  margin-left: 0;
-  margin-right: 0;
 }
 
 .sottotitolo,
@@ -1915,6 +1904,63 @@ button.carta:active {
   padding-left: 18px;
   font-size: 15px;
   line-height: 1.6;
+}
+
+/*
+ * Nome, punti e quota sulla stessa riga. Il nome prende quello che avanza e
+ * va a capo se serve: i numeri restano fermi a destra, larghezza fissa, cosi'
+ * a 380px un soprannome lungo non li schiaccia e non li fa sparire.
+ */
+.lista-conto {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.lista-conto > li {
+  display: grid;
+  /* rem, non em: la riga dei titoli e' a 12px e con em le colonne
+     non allineano piu' i numeri. */
+  grid-template-columns: minmax(0, 1fr) 2.75rem 3.25rem 3.25rem;
+  align-items: baseline;
+  column-gap: 8px;
+}
+
+.lista-conto-solo-quote > li {
+  grid-template-columns: minmax(0, 1fr) 3.25rem 3.25rem;
+}
+
+.lista-conto-capo {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.lista-conto-capo span {
+  text-align: right;
+}
+
+.lista-conto-nome {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lista-conto-nome .giocatore {
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.lista-conto-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .esito {

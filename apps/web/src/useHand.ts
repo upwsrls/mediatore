@@ -57,6 +57,7 @@ import type { Livello } from './livello';
 import { pescaNomi } from './nomi';
 import { ordinaCarte, ordineDiMano } from './ordine';
 import * as registro from './registro';
+import { accodaQuote, totaliVuoti } from './contoTavolo';
 import { cartaDelTrionfo } from './trionfo';
 import { uccide } from './uccisione';
 
@@ -146,6 +147,11 @@ export interface Session {
    * sue carte non sono state raccolte. Null se non sta succedendo.
    */
   terra: number | null;
+  /**
+   * Quote accumulate da quando si e' seduti, per posto. Si azzera al tavolo
+   * nuovo: fra una giocata e l'altra dello stesso tavolo si somma.
+   */
+  totali: number[];
 }
 
 export interface TrickPause {
@@ -280,6 +286,9 @@ function nuovaSessione(
   // Chi era gia' seduto: la compagnia non cambia fra una smazzata e l'altra,
   // si cambia solo cambiando tavolo.
   giaSeduti: string[] = [],
+  // Il conto del tavolo: vuoto a tavolo nuovo, quello di prima fra una giocata
+  // e l'altra. Se i posti non tornano si riparte da zero.
+  totali: number[] = [],
 ): Session {
   const config = tableConfig(players, variant);
   const dealt = deal(config, dealer, createRng(seed));
@@ -334,6 +343,7 @@ function nuovaSessione(
     ordine: [],
     scaduta: false,
     terra: null,
+    totali: totali.length === players ? totali : totaliVuoti(players),
   };
 }
 
@@ -475,8 +485,9 @@ export function useHand(): UseHand {
         }
         const prossimo = completaMettendoATerra(prima, pause.winner);
         const score = scoreHand(prossimo);
+        const quote = settle(prossimo, score);
         registro.chiudiSmazzata(
-          registro.esitoDaPunteggio(score, settle(prossimo, score)),
+          registro.esitoDaPunteggio(score, quote),
           prossimo.alliance.kind === 'amico' ? prossimo.alliance.friend : null,
         );
         const delMonte = pausaDelMonte(prossimo);
@@ -484,7 +495,13 @@ export function useHand(): UseHand {
         setSession((prev) =>
           prev === null
             ? prev
-            : { ...prev, state: prossimo, terra: null, phase: dopoLaSmazzata({ ...prev, state: prossimo }) },
+            : {
+                ...prev,
+                state: prossimo,
+                terra: null,
+                totali: accodaQuote(prev.totali, quote),
+                phase: dopoLaSmazzata({ ...prev, state: prossimo }),
+              },
         );
         return;
       }
@@ -756,7 +773,12 @@ export function useHand(): UseHand {
       },
       null,
     );
-    setSession({ ...session, phase: dopoLaSmazzata(session), scaduta: true });
+    setSession({
+      ...session,
+      phase: dopoLaSmazzata(session),
+      scaduta: true,
+      totali: accodaQuote(session.totali, quote),
+    });
   }, [session]);
 
   const scegliAmico = useCallback(
@@ -812,10 +834,18 @@ export function useHand(): UseHand {
       registro.annota(registro.decisioneGiocata(corrente, cardId, quantoCiHaMesso()));
       if (prossimo.finished) {
         const score = scoreHand(prossimo);
+        const quote = settle(prossimo, score);
         registro.chiudiSmazzata(
-          registro.esitoDaPunteggio(score, settle(prossimo, score)),
+          registro.esitoDaPunteggio(score, quote),
           prossimo.alliance.kind === 'amico' ? prossimo.alliance.friend : null,
         );
+        setSession({
+          ...session,
+          state: prossimo,
+          totali: accodaQuote(session.totali, quote),
+        });
+      } else {
+        setSession({ ...session, state: prossimo });
       }
       if (prossimo.completedTricks.length > corrente.completedTricks.length) {
         const presa = prossimo.completedTricks[prossimo.completedTricks.length - 1];
@@ -828,7 +858,6 @@ export function useHand(): UseHand {
           });
         }
       }
-      setSession({ ...session, state: prossimo });
     },
     [session, pause],
   );
@@ -867,6 +896,7 @@ export function useHand(): UseHand {
           session.botPensante,
           session.livello,
           session.nomi,
+          session.totali,
         ),
       );
       setError(null);
