@@ -85,10 +85,12 @@ export function TableScreen({
   const aTerra = session.terra !== null;
   const puoGiocare = tocca && !scopreIlMonte && pause === null && !aTerra;
   // Fuori turno come le speciali: l'unico criterio sono le firme, non il giro.
+  // Con una carta sola non c'e' niente da mettere a terra: si gioca e basta.
   const puoTerra =
     !scopreIlMonte &&
     pause === null &&
     !aTerra &&
+    mano.length >= 2 &&
     puoMettereATerra(vistaDaStato(state, chiMostra));
 
   // Due tocchi: la carta resta alzata finche' non si conferma o non si

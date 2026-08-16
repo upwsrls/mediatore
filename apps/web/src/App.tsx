@@ -8,7 +8,6 @@ import { FriendScreen } from './screens/FriendScreen';
 import { OpeningScreen } from './screens/OpeningScreen';
 import { SetupScreen } from './screens/SetupScreen';
 import { TableScreen } from './screens/TableScreen';
-import { WaitScreen } from './screens/WaitScreen';
 import { useHand } from './useHand';
 
 export function App(): ReactElement {
@@ -35,6 +34,11 @@ export function App(): ReactElement {
     (session.phase === 'distribuzione' ||
       session.phase === 'call' ||
       (decideUnBot && (session.phase === 'discard' || session.phase === 'friend')) ||
+      // Chi se la sente l'ha detta chi sta qui: gli avversari decidono chi
+      // apre, e si aspetta sullo stesso tavolo, come per scarto e amico.
+      (session.phase === 'apertura' &&
+        session.umano !== null &&
+        caller === session.umano) ||
       // Smazzata non giocata, ma c'e' un monte da scoprire: stesso tavolo
       // della chiamata, senza i bottoni, le carte al centro.
       (session.phase === 'monte' && state === null));
@@ -69,23 +73,15 @@ export function App(): ReactElement {
         <DiscardScreen session={session} onConferma={hand.confermaScarti} />
       )}
 
-      {session !== null && session.phase === 'apertura' && (
-        // La chi se la sente l'ha dichiarata chi sta qui davanti: tocca agli
-        // altri farsi avanti, e non c'e' niente da toccare.
-        session.umano !== null && caller === session.umano ? (
-          <WaitScreen
-            session={session}
-            titolo="chi se la sente?"
-            nota="gli avversari stanno decidendo chi apre"
-          />
-        ) : (
+      {session !== null &&
+        session.phase === 'apertura' &&
+        (session.umano === null || caller !== session.umano) && (
           <OpeningScreen
             session={session}
             onApre={hand.apre}
             onNessuno={hand.nessunoSeLaSente}
           />
-        )
-      )}
+        )}
 
       {session !== null && session.phase === 'friend' && !decideUnBot && (
         <FriendScreen session={session} onScegli={hand.scegliAmico} />

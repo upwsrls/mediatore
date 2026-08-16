@@ -836,9 +836,10 @@ export function useHand(): UseHand {
   const mettiATerra = useCallback((chi: number) => {
     if (session?.state == null || pause !== null || session.terra !== null) return;
     const corrente = session.state;
+    const sue = corrente.hands[chi] ?? [];
+    if (sue.length < 2) return;
     if (!puoMettereATerra(vistaDaStato(corrente, chi))) return;
     suona('scelta');
-    const sue = corrente.hands[chi] ?? [];
     setPause({
       winner: chi,
       points: 0,

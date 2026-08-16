@@ -1287,6 +1287,14 @@ button.carta:active {
   color: var(--oro-tenue);
 }
 
+/* Due righe strette al centro: una sola si allungava verso i lati. */
+.annuncio-apertura {
+  flex-direction: column;
+  gap: 0;
+  white-space: normal;
+  text-align: center;
+}
+
 /* Stesso annuncio, un filo piu' in alto: in mezzo ci sono le giocate. */
 .annuncio-terra {
   top: 10%;

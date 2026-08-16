@@ -336,6 +336,11 @@ export function DealingScreen({
                 />
               )}
             </div>
+          ) : session.phase === 'apertura' ? (
+            <p className="nota-centro annuncio-chiamata annuncio-apertura compare">
+              <span>gli avversari stanno decidendo</span>
+              <span>chi gioca di mano</span>
+            </p>
           ) : (
             // Finite le carte il centro resta vuoto: di chi sia il turno lo dice
             // il bordo acceso attorno al posto, come per tutto il resto del
@@ -516,6 +521,7 @@ function statoPrimaDelGioco(session: Session, tocca: boolean, diTurno: number | 
   if (session.phase === 'friend' && chiamante !== null) {
     return `${nomeGiocatore(chiamante)} sceglie l'amico`;
   }
+  if (session.phase === 'apertura') return 'gli avversari stanno decidendo chi apre';
   if (tocca) return 'chiami o passi';
   if (diTurno !== null) return `${nomeGiocatore(diTurno)} sta decidendo`;
   return 'si chiama';

@@ -9,7 +9,6 @@ import {
   NOMI_CHIAMATA,
   chiamataDi,
   contoDellaPosta,
-  costo,
   spiegazioniSupplementi,
 } from '../chiamate';
 import { useInCima } from '../inCima';
@@ -66,14 +65,11 @@ export function EndScreen({
   const score = scoreHand(state);
   const settlement = settle(state, score);
   const somma = settlement.reduce((totale, quota) => totale + quota, 0);
-  // Solo una smazzata col monte ha una dichiarazione e quindi una posta.
-  const dichiarazione = state.alliance.kind === 'monte' ? state.alliance : null;
-  const { caller, friend } = schieramenti(state);
 
   return (
     <section className="schermata schermata-conteggio">
       <StatusLine state={state} />
-      <h2>fine smazzata</h2>
+      <h2>fine giocata</h2>
 
       {/* Il colpo piu' raro del gioco: se c'e' stato, si vede prima di tutto. */}
       {score.cappotto !== null && (
@@ -101,20 +97,20 @@ export function EndScreen({
           <>
             <p className="etichetta">chiamata</p>
             <p>
-              chiamante {score.callerSide} contro avversari {score.opponentSide}, soglia{' '}
+              chiamatore {score.callerSide} contro avversari {score.opponentSide}, soglia{' '}
               {score.threshold}
             </p>
             {/* Col cappotto decidono le basi: i punti possono dire il contrario. */}
             <p className="esito">
               {score.cappotto === 'contro'
-                ? 'il chiamante perde: nemmeno una base'
+                ? 'il chiamatore perde: nemmeno una base'
                 : score.cappotto === 'favore'
-                  ? 'il chiamante vince: tutte le basi'
+                  ? 'il chiamatore vince: tutte le basi'
                   : score.tie
                     ? 'pareggio esatto: nessuno paga'
                     : score.callerWins
-                      ? 'il chiamante vince'
-                      : 'il chiamante perde'}
+                      ? 'il chiamatore vince'
+                      : 'il chiamatore perde'}
             </p>
           </>
         )}
@@ -122,22 +118,6 @@ export function EndScreen({
 
       <div className="blocco">
         <p className="etichetta">quote</p>
-        {/* Da dove escono gli importi: dichiarazione e supplementi, addendo per
-            addendo. Col cappotto il conto sta gia' scritto la' sopra, intero. */}
-        {score.cappotto === null &&
-          caller !== null &&
-          (dichiarazione !== null || score.penalitaSoglia > 0) && (
-          <>
-            <p className="posta-applicata">
-              {NOMI_CHIAMATA[chiamataDi(state) ?? 'normale']},{' '}
-              {contoDellaPosta(chiamataDi(state), false, score.penalitaSoglia)} —{' '}
-              {score.tie
-                ? 'pareggio esatto: nessuno paga'
-                : riepilogoQuote(settlement, caller, friend)}
-            </p>
-            <Supplementi score={score} state={state} />
-          </>
-        )}
         <Quote settlement={settlement} state={state} />
         <p className="nota">somma delle quote: {somma}</p>
       </div>
@@ -297,7 +277,7 @@ function FineScaduta({
   onCambiaPuntoDiVista,
 }: Omit<Props, 'state'>): ReactElement {
   const caller = session.call.caller;
-  if (caller === null) return <p>nessun chiamante</p>;
+  if (caller === null) return <p>nessun chiamatore</p>;
 
   const settlement = settleChiSeLaSenteScaduto(session.config, caller);
 
@@ -306,7 +286,7 @@ function FineScaduta({
       <div className="riga-stato">
         {nomeGiocatore(caller)} ha detto CHI SE LA SENTE — non se l e sentita nessuno
       </div>
-      <h2>fine smazzata</h2>
+      <h2>fine giocata</h2>
 
       <div className="blocco">
         <p className="etichetta">esito</p>
@@ -318,10 +298,6 @@ function FineScaduta({
 
       <div className="blocco">
         <p className="etichetta">quote</p>
-        <p className="posta-applicata">
-          {NOMI_CHIAMATA.chiSeLaSente}, {costo('chiSeLaSente')} —{' '}
-          {riepilogoQuote(settlement, caller, null)}
-        </p>
         <Quote settlement={settlement} state={null} />
         <p className="nota">
           somma delle quote: {settlement.reduce((totale, quota) => totale + quota, 0)}
