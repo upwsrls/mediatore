@@ -1,7 +1,8 @@
 import type { CallAction, CallState, Card as CartaEngine } from '@mediatore/engine';
 import { currentCaller } from '@mediatore/engine';
 import type { CSSProperties, ReactElement } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAudio } from '../audio/useAudio';
 import { Card } from '../components/Card';
 import { IntestazioneTavolo } from '../components/IntestazioneTavolo';
@@ -72,6 +73,7 @@ export function DealingScreen({
   // Una delle tre speciali in attesa del secondo tocco. CHIAMA e PASSO
   // non passano di qui: quelli sono le mosse normali e un tocco basta.
   const [inAttesa, setInAttesa] = useState<Speciale | null>(null);
+  const confermaInCronologia = useRef(false);
 
   const distribuendo = session.phase === 'distribuzione';
   // Nessuno ha aperto: il monte si scopre qui, sullo stesso tavolo della
@@ -88,6 +90,28 @@ export function DealingScreen({
   useEffect(() => {
     setInAttesa(null);
   }, [diTurno, chiDichiara, session.call.caller, session.call.chiamata]);
+
+  useEffect(() => {
+    if (inAttesa === null) {
+      if (confermaInCronologia.current) {
+        confermaInCronologia.current = false;
+        const stato = history.state as { confermaSpeciale?: boolean } | null;
+        if (stato?.confermaSpeciale === true) history.back();
+      }
+      return undefined;
+    }
+    if (!confermaInCronologia.current) {
+      history.pushState({ confermaSpeciale: true }, '');
+      confermaInCronologia.current = true;
+    }
+    const suIndietro = (): void => {
+      confermaInCronologia.current = false;
+      audio.suona('scelta');
+      setInAttesa(null);
+    };
+    window.addEventListener('popstate', suIndietro);
+    return () => window.removeEventListener('popstate', suIndietro);
+  }, [inAttesa, audio]);
 
   // Contro i bot sotto c'e' sempre la mano di chi gioca davvero. In hotseat il
   // telefono cambia mani: mentre si distribuisce lo tiene chi siede in basso,
@@ -380,38 +404,19 @@ export function DealingScreen({
             </div>
           )}
 
-          {/* La conferma sta qui, al posto delle tre: stessa riga, stessa
-              altezza. Una riga in piu' alzerebbe i bottoni e sposterebbe
-              il tavolo, come e' gia' successo con il registro. */}
-          {inAttesa === null ? (
-            <div className="riga-bottoni riga-speciali">
-              {SPECIALI.map((chiamata) => (
-                <button
-                  key={chiamata}
-                  type="button"
-                  className="bottone-grande bottone-dichiarazione"
-                  onClick={() => chiediSpeciale(chiamata)}
-                >
-                  <span className="costo">{costo(chiamata)}</span>
-                  <span className="nome-dichiarazione">{NOMI_CHIAMATA[chiamata]}</span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="riga-bottoni riga-speciali riga-conferma">
-              <p className="domanda-dichiarazione">{domandaConfermaSpeciale(inAttesa)}</p>
-              <button type="button" className="bottone-grande" onClick={confermaSpeciale}>
-                si, dichiaro
-              </button>
+          <div className="riga-bottoni riga-speciali">
+            {SPECIALI.map((chiamata) => (
               <button
+                key={chiamata}
                 type="button"
-                className="bottone-grande bottone-secondario"
-                onClick={lasciaStare}
+                className="bottone-grande bottone-dichiarazione"
+                onClick={() => chiediSpeciale(chiamata)}
               >
-                no, lascia stare
+                <span className="costo">{costo(chiamata)}</span>
+                <span className="nome-dichiarazione">{NOMI_CHIAMATA[chiamata]}</span>
               </button>
-            </div>
-          )}
+            ))}
+          </div>
 
           {conAiuti(session.livello) && (
             <p className="nota nota-dichiarazioni">
@@ -420,6 +425,34 @@ export function DealingScreen({
           )}
         </div>
       )}
+
+      {inAttesa !== null &&
+        createPortal(
+          <div
+            className="modale modale-conferma"
+            role="dialog"
+            aria-modal="true"
+            aria-label={domandaConfermaSpeciale(inAttesa)}
+            onClick={lasciaStare}
+          >
+            <div className="modale-contenuto" onClick={(evento) => evento.stopPropagation()}>
+              <p className="domanda-dichiarazione">{domandaConfermaSpeciale(inAttesa)}</p>
+              <div className="riga-bottoni">
+                <button type="button" className="bottone-grande" onClick={confermaSpeciale}>
+                  si, dichiaro
+                </button>
+                <button
+                  type="button"
+                  className="bottone-grande bottone-secondario"
+                  onClick={lasciaStare}
+                >
+                  no, lascia stare
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </section>
   );
 }

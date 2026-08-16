@@ -732,8 +732,8 @@ button.carta:active {
 }
 
 /* Le tre speciali stanno su una riga sola: il costo sopra, il nome sotto.
-   L'altezza e' fissa: la conferma prende lo stesso posto, senza alzare
-   i bottoni e senza spostare il tavolo. */
+   L'altezza resta fissa: la conferma e' un riquadro sopra la pagina, questa
+   riga non si tocca. */
 .riga-speciali {
   --altezza-speciali: 44px;
   flex-wrap: nowrap;
@@ -747,27 +747,6 @@ button.carta:active {
   min-width: 0;
   min-height: var(--altezza-speciali);
   padding: 0 4px;
-}
-
-.riga-speciali .domanda-dichiarazione {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.2;
-  overflow: hidden;
-}
-
-.chiamata-al-tavolo .riga-speciali.riga-conferma .bottone-grande {
-  flex: 0 0 auto;
-  min-width: 0;
-  min-height: var(--altezza-speciali);
-  height: var(--altezza-speciali);
-  font-size: 12px;
-  padding: 0 8px;
 }
 
 .riga-speciali .costo {
@@ -1694,14 +1673,6 @@ button.carta:active {
     --altezza-speciali: 38px;
   }
 
-  .riga-speciali .domanda-dichiarazione {
-    font-size: 10px;
-  }
-
-  .chiamata-al-tavolo .riga-speciali.riga-conferma .bottone-grande {
-    font-size: 11px;
-  }
-
   /* Su schermi bassi la regola scritta e' la prima cosa a cui rinunciare:
      i bottoni si capiscono da soli. */
   .nota-dichiarazioni {
@@ -1944,6 +1915,27 @@ button.carta:active {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* Sopra il tavolo, non al posto dei bottoni: il fondo smorza, la pagina
+   sotto resta dov'era. Fuori dal flusso, cosi' niente si sposta. */
+.modale-conferma {
+  align-items: center;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.modale-conferma .modale-contenuto {
+  max-width: 340px;
+  overflow: hidden;
+}
+
+.modale-conferma .domanda-dichiarazione {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
 }
 
 .basi {
