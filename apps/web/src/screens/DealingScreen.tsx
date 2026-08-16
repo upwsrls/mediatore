@@ -12,6 +12,7 @@ import { DORSO } from '../carte/immagini';
 import {
   NOMI_CHIAMATA,
   SPECIALI,
+  bottoneConfermaSpeciale,
   costo,
   domandaConfermaSpeciale,
   type Speciale,
@@ -439,7 +440,7 @@ export function DealingScreen({
               <p className="domanda-dichiarazione">{domandaConfermaSpeciale(inAttesa)}</p>
               <div className="riga-bottoni">
                 <button type="button" className="bottone-grande" onClick={confermaSpeciale}>
-                  si, dichiaro
+                  {bottoneConfermaSpeciale(inAttesa)}
                 </button>
                 <button
                   type="button"

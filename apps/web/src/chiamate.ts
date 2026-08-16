@@ -18,14 +18,17 @@ export const SPECIALI: TipoChiamata[] = ['sola', 'colonna', 'chiSeLaSente'];
 export type Speciale = (typeof SPECIALI)[number];
 
 /**
- * La domanda prima di una speciale: il nome e quanto vale, in numeri.
- * Senza il costo non si capisce cosa si sta rischiando.
+ * La domanda prima di una speciale: solo il nome. Il costo sta gia'
+ * sul bottone, non si ripete qui.
  */
 export function domandaConfermaSpeciale(chiamata: Speciale): string {
-  const volte = moltiplicatore(chiamata);
-  const nome = NOMI_CHIAMATA[chiamata].toUpperCase();
-  const cosa = chiamata === 'chiSeLaSente' ? nome : `la ${nome}`;
-  return `sei sicuro di dichiarare ${cosa}? vale ${volte} volte`;
+  return `sei sicuro di fare ${NOMI_CHIAMATA[chiamata].toUpperCase()}?`;
+}
+
+/** Il si della conferma: sulle due meno care si ripete il nome, sulla terza basta si. */
+export function bottoneConfermaSpeciale(chiamata: Speciale): string {
+  if (chiamata === 'chiSeLaSente') return 'si';
+  return `faccio ${NOMI_CHIAMATA[chiamata]}`;
 }
 
 /**

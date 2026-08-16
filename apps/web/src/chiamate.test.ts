@@ -2,6 +2,7 @@ import type { HandScore, HandState, Variant } from '@mediatore/engine';
 import { createHandState, moltiplicatore, tableConfig } from '@mediatore/engine';
 import { describe, expect, it } from 'vitest';
 import {
+  bottoneConfermaSpeciale,
   contoDellaPosta,
   costo,
   domandaConfermaSpeciale,
@@ -32,23 +33,20 @@ describe('posta', () => {
 });
 
 describe('domandaConfermaSpeciale', () => {
-  it('dice il nome e quanto si rischia, in numeri', () => {
-    expect(domandaConfermaSpeciale('sola')).toBe(
-      'sei sicuro di dichiarare la SOLA? vale 3 volte',
-    );
-    expect(domandaConfermaSpeciale('colonna')).toBe(
-      'sei sicuro di dichiarare la COLONNA? vale 4 volte',
-    );
+  it('chiede solo il nome: il costo sta gia sul bottone', () => {
+    expect(domandaConfermaSpeciale('sola')).toBe('sei sicuro di fare SOLA?');
+    expect(domandaConfermaSpeciale('colonna')).toBe('sei sicuro di fare COLONNA?');
     expect(domandaConfermaSpeciale('chiSeLaSente')).toBe(
-      'sei sicuro di dichiarare CHI SE LA SENTE? vale 5 volte',
+      'sei sicuro di fare CHI SE LA SENTE?',
     );
   });
+});
 
-  it('prende il moltiplicatore dall engine, non se lo inventa', () => {
-    expect(domandaConfermaSpeciale('sola')).toContain(`${moltiplicatore('sola')} volte`);
-    expect(domandaConfermaSpeciale('chiSeLaSente')).toContain(
-      `${moltiplicatore('chiSeLaSente')} volte`,
-    );
+describe('bottoneConfermaSpeciale', () => {
+  it('ripete il nome sulle due meno care, sulla terza basta si', () => {
+    expect(bottoneConfermaSpeciale('sola')).toBe('faccio sola');
+    expect(bottoneConfermaSpeciale('colonna')).toBe('faccio colonna');
+    expect(bottoneConfermaSpeciale('chiSeLaSente')).toBe('si');
   });
 });
 
