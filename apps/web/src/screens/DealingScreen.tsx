@@ -13,8 +13,10 @@ import {
   NOMI_CHIAMATA,
   SPECIALI,
   bottoneConfermaSpeciale,
+  chiHaDichiaratoPrima,
   costo,
   domandaConfermaSpeciale,
+  haDichiaratoPrima,
   type Speciale,
 } from '../chiamate';
 import { CARTA_DISTRIBUITA_MS, chiRiceve, quanteNeHa } from '../distribuzione';
@@ -73,7 +75,9 @@ export function DealingScreen({
   const [dichiarante, setDichiarante] = useState<number | null>(null);
   // Una delle tre speciali in attesa del secondo tocco. CHIAMA e PASSO
   // non passano di qui: quelli sono le mosse normali e un tocco basta.
-  const [inAttesa, setInAttesa] = useState<Speciale | null>(null);
+  // `chi` e' chi ha toccato: resta lui anche se nel frattempo il turno gira.
+  const [inAttesa, setInAttesa] = useState<{ chiamata: Speciale; chi: number } | null>(null);
+  const [superataDa, setSuperataDa] = useState<number | null>(null);
   const confermaInCronologia = useRef(false);
 
   const distribuendo = session.phase === 'distribuzione';
@@ -89,8 +93,14 @@ export function DealingScreen({
   const chiDichiara = session.umano ?? dichiarante ?? diTurno ?? session.puntoDiVista;
 
   useEffect(() => {
-    setInAttesa(null);
-  }, [diTurno, chiDichiara, session.call.caller, session.call.chiamata]);
+    if (inAttesa === null) return;
+    const altro = chiHaDichiaratoPrima(
+      inAttesa.chi,
+      session.call.caller,
+      session.call.chiamata,
+    );
+    if (altro !== null) setSuperataDa(altro);
+  }, [inAttesa, session.call.caller, session.call.chiamata]);
 
   useEffect(() => {
     if (inAttesa === null) {
@@ -109,6 +119,7 @@ export function DealingScreen({
       confermaInCronologia.current = false;
       audio.suona('scelta');
       setInAttesa(null);
+      setSuperataDa(null);
     };
     window.addEventListener('popstate', suIndietro);
     return () => window.removeEventListener('popstate', suIndietro);
@@ -156,31 +167,45 @@ export function DealingScreen({
   function chiamaNormale(): void {
     if (diTurno === null) return;
     setInAttesa(null);
+    setSuperataDa(null);
     onDecide(diTurno, { tipo: 'chiama', chiamata: 'normale' });
   }
 
   function passa(): void {
     if (diTurno === null) return;
     setInAttesa(null);
+    setSuperataDa(null);
     onDecide(diTurno, { tipo: 'passo' });
   }
 
   function chiediSpeciale(chiamata: Speciale): void {
     // Stesso tocco del primo alzare una carta: la dichiarazione parte dopo.
     audio.suona('scelta');
-    setInAttesa(chiamata);
+    setSuperataDa(null);
+    setInAttesa({ chiamata, chi: chiDichiara });
   }
 
   function confermaSpeciale(): void {
-    if (inAttesa === null) return;
-    const chiamata = inAttesa;
+    if (inAttesa === null || superataDa !== null) return;
+    const altro = chiHaDichiaratoPrima(
+      inAttesa.chi,
+      session.call.caller,
+      session.call.chiamata,
+    );
+    if (altro !== null) {
+      setSuperataDa(altro);
+      return;
+    }
+    if (session.call.closed) return;
+    const { chiamata, chi } = inAttesa;
     setInAttesa(null);
-    onDecide(chiDichiara, { tipo: 'chiama', chiamata });
+    onDecide(chi, { tipo: 'chiama', chiamata });
   }
 
   function lasciaStare(): void {
     audio.suona('scelta');
     setInAttesa(null);
+    setSuperataDa(null);
   }
 
   // Chi ha chiamato sceglie gli scarti o l'amico: al tavolo si resta seduti e
@@ -433,23 +458,42 @@ export function DealingScreen({
             className="modale modale-conferma"
             role="dialog"
             aria-modal="true"
-            aria-label={domandaConfermaSpeciale(inAttesa)}
+            aria-label={
+              superataDa !== null
+                ? haDichiaratoPrima(nomeGiocatore(superataDa))
+                : domandaConfermaSpeciale(inAttesa.chiamata)
+            }
             onClick={lasciaStare}
           >
-            <div className="modale-contenuto" onClick={(evento) => evento.stopPropagation()}>
-              <p className="domanda-dichiarazione">{domandaConfermaSpeciale(inAttesa)}</p>
-              <div className="riga-bottoni">
-                <button type="button" className="bottone-grande" onClick={confermaSpeciale}>
-                  {bottoneConfermaSpeciale(inAttesa)}
-                </button>
-                <button
-                  type="button"
-                  className="bottone-grande bottone-secondario"
-                  onClick={lasciaStare}
-                >
-                  no, lascia stare
-                </button>
-              </div>
+            <div
+              className="modale-contenuto"
+              onClick={
+                superataDa !== null ? undefined : (evento) => evento.stopPropagation()
+              }
+            >
+              {superataDa !== null ? (
+                <p className="domanda-dichiarazione">
+                  {haDichiaratoPrima(nomeGiocatore(superataDa))}
+                </p>
+              ) : (
+                <>
+                  <p className="domanda-dichiarazione">
+                    {domandaConfermaSpeciale(inAttesa.chiamata)}
+                  </p>
+                  <div className="riga-bottoni">
+                    <button type="button" className="bottone-grande" onClick={confermaSpeciale}>
+                      {bottoneConfermaSpeciale(inAttesa.chiamata)}
+                    </button>
+                    <button
+                      type="button"
+                      className="bottone-grande bottone-secondario"
+                      onClick={lasciaStare}
+                    >
+                      no, lascia stare
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>,
           document.body,

@@ -31,6 +31,26 @@ export function bottoneConfermaSpeciale(chiamata: Speciale): string {
   return `faccio ${NOMI_CHIAMATA[chiamata]}`;
 }
 
+/** Perche' la conferma e' sparita: un altro ha dichiarato per primo. */
+export function haDichiaratoPrima(nome: string): string {
+  return `ha dichiarato prima ${nome}`;
+}
+
+/**
+ * La conferma resta aperta se gli altri passano o chiamano normale: quelle
+ * non chiudono le speciali. Si chiude solo se un altro ha dichiarato una
+ * delle tre, che e' la prima e blocca le altre.
+ */
+export function chiHaDichiaratoPrima(
+  chiVoleva: number,
+  caller: number | null,
+  chiamata: TipoChiamata | null,
+): number | null {
+  if (caller === null || caller === chiVoleva) return null;
+  if (chiamata === null || chiamata === 'normale') return null;
+  return caller;
+}
+
 /**
  * Da una a sei partite: sei e' il massimo che si possa arrivare a giocare,
  * la chi se la sente con il cappotto.

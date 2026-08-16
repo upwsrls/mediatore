@@ -1,11 +1,20 @@
 import type { HandScore, HandState, Variant } from '@mediatore/engine';
-import { createHandState, moltiplicatore, tableConfig } from '@mediatore/engine';
+import {
+  applyCall,
+  createCallState,
+  createHandState,
+  currentCaller,
+  moltiplicatore,
+  tableConfig,
+} from '@mediatore/engine';
 import { describe, expect, it } from 'vitest';
 import {
   bottoneConfermaSpeciale,
+  chiHaDichiaratoPrima,
   contoDellaPosta,
   costo,
   domandaConfermaSpeciale,
+  haDichiaratoPrima,
   posta,
   quantoVale,
   sogliaDi,
@@ -47,6 +56,38 @@ describe('bottoneConfermaSpeciale', () => {
     expect(bottoneConfermaSpeciale('sola')).toBe('faccio sola');
     expect(bottoneConfermaSpeciale('colonna')).toBe('faccio colonna');
     expect(bottoneConfermaSpeciale('chiSeLaSente')).toBe('si');
+  });
+});
+
+describe('chiHaDichiaratoPrima', () => {
+  it('non chiude la conferma se gli altri passano o chiamano normale', () => {
+    expect(chiHaDichiaratoPrima(0, null, null)).toBeNull();
+    expect(chiHaDichiaratoPrima(0, 1, 'normale')).toBeNull();
+  });
+
+  it('chiude solo se un altro ha dichiarato una speciale', () => {
+    expect(chiHaDichiaratoPrima(0, 2, 'sola')).toBe(2);
+    expect(chiHaDichiaratoPrima(0, 1, 'colonna')).toBe(1);
+    expect(chiHaDichiaratoPrima(0, 3, 'chiSeLaSente')).toBe(3);
+  });
+
+  it('non parla di chi voleva dichiarare lui', () => {
+    expect(chiHaDichiaratoPrima(2, 2, 'sola')).toBeNull();
+  });
+
+  it('dice chi e stato, col nome', () => {
+    expect(haDichiaratoPrima('Savino')).toBe('ha dichiarato prima Savino');
+  });
+
+  it('dopo un passo la speciale di chi ha la conferma aperta parte ancora', () => {
+    const config = tableConfig(4, 'monte');
+    const call = createCallState(config, 0);
+    const chiVoleva = call.order[2] as number;
+    const dopoPasso = applyCall(call, currentCaller(call) as number, { tipo: 'passo' });
+    expect(chiHaDichiaratoPrima(chiVoleva, dopoPasso.caller, dopoPasso.chiamata)).toBeNull();
+    const finale = applyCall(dopoPasso, chiVoleva, { tipo: 'chiama', chiamata: 'sola' });
+    expect(finale.caller).toBe(chiVoleva);
+    expect(finale.chiamata).toBe('sola');
   });
 });
 
