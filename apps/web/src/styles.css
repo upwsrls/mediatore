@@ -379,16 +379,22 @@ legend {
 }
 
 /*
- * Due sguardi sulla stessa riga: il monte resta a sinistra, dove e' sempre
- * stato, le basi stanno a destra. La colonna di sinistra c'e' anche vuota,
- * cosi' chi non ha un monte da vedere trova Basi nello stesso posto.
- * Non si avvolge: altezza del bottone e basta, anche con tutte e due le note.
+ * Tre sguardi sulla stessa riga, tre parti fisse: Monte a sinistra,
+ * metti a terra in mezzo, Basi a destra. La colonna di sinistra c'e'
+ * anche vuota, cosi' chi non ha un monte da vedere trova gli altri
+ * due nello stesso posto. Non si avvolge: altezza del bottone e basta.
  */
 .riga-sguardi {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   gap: 8px;
+}
+
+.sguardo-monte,
+.sguardo-terra,
+.sguardo-basi {
+  min-width: 0;
 }
 
 .sguardo-monte {
@@ -396,15 +402,28 @@ legend {
   flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
-  min-width: 0;
+}
+
+.sguardo-terra,
+.sguardo-basi {
+  display: flex;
 }
 
 .sguardo-basi {
-  justify-self: end;
+  justify-content: end;
 }
 
-.sguardo-basi .bottone-piccolo {
+.riga-sguardi .bottone-piccolo {
+  width: 100%;
   white-space: nowrap;
+}
+
+/* Il bottone del monte lascia il posto alle note: se non ci sono si
+   allarga quanto gli altri due. */
+.sguardo-monte .bottone-piccolo {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* Il quaderno delle partite: sta in fondo e non deve rubare l'occhio. */
@@ -1674,11 +1693,6 @@ button.carta:active {
     min-height: 38px;
   }
 
-  .riga-terra .bottone-grande {
-    min-height: 38px;
-    font-size: 14px;
-  }
-
   /* Su schermi bassi la regola scritta e' la prima cosa a cui rinunciare:
      i bottoni si capiscono da soli. */
   .nota-dichiarazioni {
@@ -1726,12 +1740,6 @@ button.carta:active {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.riga-terra .bottone-grande {
-  width: 100%;
-  min-height: 42px;
-  font-size: 15px;
 }
 
 /* Chi ha in mano quelle carte: in hotseat il telefono cambia mani, il tavolo no. */

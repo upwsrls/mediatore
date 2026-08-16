@@ -333,6 +333,16 @@ export function TableScreen({
               </>
             )}
           </div>
+          <div className="sguardo-terra">
+            <button
+              type="button"
+              className="bottone-piccolo"
+              disabled={!puoTerra}
+              onClick={onMettiATerra}
+            >
+              metti a terra
+            </button>
+          </div>
           <div className="sguardo-basi">
             <button
               type="button"
@@ -413,18 +423,6 @@ export function TableScreen({
           <p className={obbligo === null ? 'obbligo obbligo-in-attesa' : 'obbligo'}>
             {obbligo ?? '\u00a0'}
           </p>
-        )}
-        {!scopreIlMonte && (
-          <div className="riga-terra">
-            <button
-              type="button"
-              className="bottone-grande"
-              disabled={!puoTerra}
-              onClick={onMettiATerra}
-            >
-              metti a terra
-            </button>
-          </div>
         )}
       </div>
 
