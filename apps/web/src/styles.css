@@ -159,6 +159,12 @@ legend {
   padding: 8px 10px;
 }
 
+/* Il seme occupa il posto anche prima di essere noto: cosi' la riga non
+   cambia altezza — ne' larghezza — quando compare. */
+.intestazione-seme-ignoto {
+  visibility: hidden;
+}
+
 /* ---- ruoli ---- */
 
 .riga-stato {

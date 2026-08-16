@@ -1,7 +1,7 @@
 import type { Card, HandState, Rank, Suit } from '@mediatore/engine';
 import { createDeck, createHandState, playCard, tableConfig } from '@mediatore/engine';
 import { describe, expect, it } from 'vitest';
-import { contaTrionfi } from './trionfo';
+import { contaTrionfi, trionfoNoto } from './trionfo';
 
 const MAZZO = createDeck();
 const TRIONFO: Suit = 'bastoni';
@@ -28,6 +28,20 @@ function tavolo(monte: Card[] = []): HandState {
     leader: 0,
   });
 }
+
+describe('trionfoNoto', () => {
+  it('resta ignoto per tutta la distribuzione', () => {
+    expect(trionfoNoto('distribuzione')).toBe(false);
+  });
+
+  it('si conosce appena le carte sono finite: col monte e nell amico', () => {
+    // Stesso istante in cui si gira l'ultima del monte, o arriva l'ultima
+    // carta al cartaro: la fase passa a call e da li' il seme e' di tutti.
+    expect(trionfoNoto('call')).toBe(true);
+    expect(trionfoNoto('play')).toBe(true);
+    expect(trionfoNoto('monte')).toBe(true);
+  });
+});
 
 describe('contaTrionfi', () => {
   it('prima di giocare conta in giro tutti quelli che non ha in mano', () => {

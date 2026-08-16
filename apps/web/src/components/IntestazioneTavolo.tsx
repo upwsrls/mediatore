@@ -3,6 +3,7 @@ import { useAudio } from '../audio/useAudio';
 import { SEMI } from '../labels';
 import type { Livello } from '../livello';
 import { livelloOpposto } from '../livello';
+import { trionfoNoto } from '../trionfo';
 import type { Session } from '../useHand';
 import { SuitIcon } from './SuitIcon';
 
@@ -18,7 +19,8 @@ interface Props {
 /**
  * La riga in cima al tavolo: trionfo, basi, e le pillole. E' la stessa dalla
  * prima carta che esce dal mazzo all'ultima base, cosi' distribuzione,
- * chiamata e gioco sono lo stesso tavolo.
+ * chiamata e gioco sono lo stesso tavolo. Il seme resta riservato ma
+ * invisibile finche' non si gira: ultima del monte, o ultima carta all'amico.
  */
 export function IntestazioneTavolo({
   session,
@@ -29,12 +31,16 @@ export function IntestazioneTavolo({
 }: Props): ReactElement {
   const audio = useAudio();
   const spia = session.carteScoperte && session.umano !== null;
+  const noto = trionfoNoto(session.phase);
 
   return (
     <header className="intestazione">
       <span>
         trionfo{' '}
-        <strong className={SEMI[session.trump].classe}>
+        <strong
+          className={`${SEMI[session.trump].classe}${noto ? '' : ' intestazione-seme-ignoto'}`}
+          aria-hidden={!noto}
+        >
           <SuitIcon suit={session.trump} size="riga" /> {session.trump}
         </strong>
       </span>

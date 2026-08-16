@@ -2,6 +2,15 @@ import { carteUscite, trionfiRimasti, vistaDaStato } from '@mediatore/bot';
 import type { Card, DealResult, HandState, TableConfig } from '@mediatore/engine';
 
 /**
+ * Il seme si vede solo quando e' stato girato: ultima carta del monte, o
+ * ultima carta distribuita nella variante amico. Prima, mentre le carte
+ * arrivano, non e' ancora noto a nessuno, e non deve trapelare.
+ */
+export function trionfoNoto(phase: string): boolean {
+  return phase !== 'distribuzione';
+}
+
+/**
  * La carta che fissa il trionfo, presa dal risultato di deal().
  * Col monte e' l'ultima carta del monte. Senza monte e' l'ultima carta
  * distribuita, che il mazziere riceve per ultima: resta scoperta in tavola
