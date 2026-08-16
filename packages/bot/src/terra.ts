@@ -1,5 +1,13 @@
 import type { Card, HandState } from '@mediatore/engine';
-import { beats, currentWinner, ledSuit, legalPlaysFor, playCard } from '@mediatore/engine';
+import {
+  beats,
+  currentWinner,
+  isAllyFor,
+  ledSuit,
+  legalPlays,
+  legalPlaysFor,
+  playCard,
+} from '@mediatore/engine';
 import { eFirma, trionfiRimasti } from './memoria.ts';
 import { possoVincere } from './valuta.ts';
 import type { VistaDelBot } from './vista.ts';
@@ -17,11 +25,22 @@ import type { VistaDelBot } from './vista.ts';
  */
 export function puoMettereATerra(vista: VistaDelBot): boolean {
   if (vista.mano.length === 0) return false;
-  // Senza mosse legali non e' il suo turno, oppure la smazzata e' finita.
-  if (vista.legali.length === 0) return false;
   if (!vista.mano.every((carta) => eFirmaPerTerra(vista, carta))) return false;
   if (vista.presaInCorso.plays.length === 0) return true;
-  return vista.legali.some((carta) => possoVincere(vista, carta));
+
+  // Gia' ha giocato in questa base: puo' chiudere solo se la sta vincendo.
+  if (vista.presaInCorso.plays.some((giocata) => giocata.player === vista.io)) {
+    return currentWinner(vista.presaInCorso) === vista.io;
+  }
+
+  // Fuori turno le mosse legali dell'engine sono vuote: si ricalcolano
+  // come se toccasse a lui, perche' le firme si mettono a terra quando
+  // si vuole, non quando arriva il giro.
+  const giocabili =
+    vista.legali.length > 0
+      ? vista.legali
+      : legalPlays([...vista.mano], vista.presaInCorso, vista.io, isAllyFor(vista.alliance));
+  return giocabili.some((carta) => possoVincere(vista, carta));
 }
 
 /**

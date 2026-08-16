@@ -105,7 +105,8 @@ describe('puoMettereATerra', () => {
     expect(puoMettereATerra(vistaDaStato(state, 0))).toBe(false);
   });
 
-  it('resta spento se non e il suo turno', () => {
+  it('si accende anche se non e il suo turno', () => {
+    // Come le speciali: chi ha solo firme le mette a terra quando vuole.
     const state = tavolo({
       mani: [
         [carta(TRIONFO, 7), carta(TRIONFO, 'asso')],
@@ -115,7 +116,7 @@ describe('puoMettereATerra', () => {
       monte: trionfiNelMonte(7, 'asso'),
       leader: 1,
     });
-    expect(puoMettereATerra(vistaDaStato(state, 0))).toBe(false);
+    expect(puoMettereATerra(vistaDaStato(state, 0))).toBe(true);
   });
 
   it('resta spento se la presa in corso la puo ancora perdere', () => {

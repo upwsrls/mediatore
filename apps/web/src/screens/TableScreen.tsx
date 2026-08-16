@@ -29,7 +29,7 @@ interface Props {
   state: HandState;
   pause: TrickPause | null;
   onGioca: (cardId: string) => void;
-  onMettiATerra: () => void;
+  onMettiATerra: (chi: number) => void;
   onCarteScoperte: (acceso: boolean) => void;
   onLivello: (livello: Livello) => void;
 }
@@ -84,8 +84,12 @@ export function TableScreen({
   const obbligo = aiuti && tocca ? obbligoCorrente(mano, legali, state) : null;
   const aTerra = session.terra !== null;
   const puoGiocare = tocca && !scopreIlMonte && pause === null && !aTerra;
+  // Fuori turno come le speciali: l'unico criterio sono le firme, non il giro.
   const puoTerra =
-    puoGiocare && puoMettereATerra(vistaDaStato(state, chiMostra));
+    !scopreIlMonte &&
+    pause === null &&
+    !aTerra &&
+    puoMettereATerra(vistaDaStato(state, chiMostra));
 
   // Due tocchi: la carta resta alzata finche' non si conferma o non si
   // cambia idea. Se il turno se ne va, non puo' restare sollevata.
@@ -338,7 +342,7 @@ export function TableScreen({
               type="button"
               className="bottone-piccolo"
               disabled={!puoTerra}
-              onClick={onMettiATerra}
+              onClick={() => onMettiATerra(chiMostra)}
             >
               metti a terra
             </button>

@@ -405,7 +405,8 @@ export interface UseHand {
   nessunoSeLaSente: () => void;
   scegliAmico: (card: Card) => void;
   gioca: (cardId: string) => void;
-  mettiATerra: () => void;
+  /** Il giocatore va detto: le firme si mettono a terra anche fuori turno. */
+  mettiATerra: (chi: number) => void;
   ricomincia: () => void;
   chiudiErrore: () => void;
 }
@@ -832,10 +833,9 @@ export function useHand(): UseHand {
     [session, pause],
   );
 
-  const mettiATerra = useCallback(() => {
+  const mettiATerra = useCallback((chi: number) => {
     if (session?.state == null || pause !== null || session.terra !== null) return;
     const corrente = session.state;
-    const chi = corrente.turn;
     if (!puoMettereATerra(vistaDaStato(corrente, chi))) return;
     suona('scelta');
     const sue = corrente.hands[chi] ?? [];
@@ -1055,7 +1055,7 @@ export function useHand(): UseHand {
       const vista = vistaDaStato(state, state.turn);
       const attesa = pausaCarta(legali.length, caso);
       if (puoMettereATerra(vista)) {
-        const timer = setTimeout(() => mettiATerra(), attesa);
+        const timer = setTimeout(() => mettiATerra(state.turn), attesa);
         return () => clearTimeout(timer);
       }
       if (!session.botPensante) {
