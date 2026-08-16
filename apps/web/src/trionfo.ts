@@ -1,4 +1,4 @@
-import { carteUscite, trionfiRimasti, vistaDaStato } from '@mediatore/bot';
+import { carteUscite, vistaDaStato } from '@mediatore/bot';
 import type { Card, DealResult, HandState, TableConfig } from '@mediatore/engine';
 
 /**
@@ -33,25 +33,28 @@ export function cartaDelTrionfo(
   return candidata;
 }
 
-/** Quanti trionfi sono passati per il tavolo e quanti ne girano ancora. */
+/** Quanti trionfi sono passati per il tavolo e quanti ne restano in gioco. */
 export interface ContoDeiTrionfi {
   usciti: number;
   inGiro: number;
 }
 
+/** Dieci carte per palo: usciti piu' rimasti fanno sempre questo. */
+const TRIONFI_DEL_PALO = 10;
+
 /**
  * Il conto dei trionfi come lo tiene chi gioca: dieci in tutto, meno quelli
- * giocati, meno quelli che ha in mano. Quello che resta gira fra gli altri, e
- * dove sia non lo dice: solo quanti.
+ * gia' giocati. Quelli che restano sono in gioco, anche i propri: il totale
+ * torna sempre. Dove siano non lo dice, solo quanti.
  *
- * E' lo stesso conto del bot, preso da dove sta: la memoria del bot vede
- * esattamente quello che vede un giocatore seduto a quel posto, quindi da qui
- * non trapela niente delle mani altrui.
+ * Le uscite si leggono dalla vista di chi guarda: e' quello che si vede
+ * stando seduti, senza le mani altrui.
  */
 export function contaTrionfi(state: HandState, seat: number): ContoDeiTrionfi {
   const vista = vistaDaStato(state, seat);
+  const usciti = carteUscite(vista).filter((carta) => carta.suit === state.trump).length;
   return {
-    usciti: carteUscite(vista).filter((carta) => carta.suit === state.trump).length,
-    inGiro: trionfiRimasti(vista).length,
+    usciti,
+    inGiro: TRIONFI_DEL_PALO - usciti,
   };
 }

@@ -44,9 +44,8 @@ describe('trionfoNoto', () => {
 });
 
 describe('contaTrionfi', () => {
-  it('prima di giocare conta in giro tutti quelli che non ha in mano', () => {
-    // Dieci trionfi, tre in mano: sette girano fra gli altri e nel coperto.
-    expect(contaTrionfi(tavolo(), 0)).toEqual({ usciti: 0, inGiro: 7 });
+  it('prima di giocare conta tutti e dieci, anche quelli in mano', () => {
+    expect(contaTrionfi(tavolo(), 0)).toEqual({ usciti: 0, inGiro: 10 });
   });
 
   it('sposta fra gli usciti quelli giocati, base per base', () => {
@@ -56,21 +55,19 @@ describe('contaTrionfi', () => {
     }
 
     const conto = contaTrionfi(state, 0);
-    expect(conto).toEqual({ usciti: 3, inGiro: 5 });
-    // Il conto torna sempre: usciti, in giro e i propri fanno dieci.
-    expect(conto.usciti + conto.inGiro + 2).toBe(10);
+    expect(conto).toEqual({ usciti: 3, inGiro: 7 });
+    // Il conto torna sempre: usciti e rimasti fanno dieci, propri compresi.
+    expect(conto.usciti + conto.inGiro).toBe(10);
   });
 
   it('conta le carte in tavola subito, senza aspettare che la base si chiuda', () => {
     const state = playCard(tavolo(), 0, carta(TRIONFO, 7).id);
-    expect(contaTrionfi(state, 0)).toEqual({ usciti: 1, inGiro: 7 });
+    expect(contaTrionfi(state, 0)).toEqual({ usciti: 1, inGiro: 9 });
   });
 
-  it('a chi ha in mano il monte i trionfi del monte non girano piu', () => {
-    // Il chiamante della normale le sue carte del monte le ha viste: quelle
-    // non sono piu' fra le sorprese. Per gli altri restano nel conto.
+  it('i trionfi del monte restano in gioco, visti o no', () => {
     const state = tavolo([carta(TRIONFO, 're'), carta('coppe', 2), carta('spade', 2)]);
-    expect(contaTrionfi(state, 0).inGiro).toBe(6);
-    expect(contaTrionfi(state, 1).inGiro).toBe(8);
+    expect(contaTrionfi(state, 0)).toEqual({ usciti: 0, inGiro: 10 });
+    expect(contaTrionfi(state, 1)).toEqual({ usciti: 0, inGiro: 10 });
   });
 });

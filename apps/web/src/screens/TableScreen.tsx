@@ -253,6 +253,11 @@ export function TableScreen({
             centro e' alto `--centro` comunque, cosi' le carte non fanno saltare
             il tavolo quando arrivano. */}
         <div className="tavolo-centro">
+          {pause?.terra === true && !pause.raccolta && (
+            <p className="nota-centro annuncio-chiamata annuncio-terra compare">
+              {nomeGiocatore(pause.winner)} ha messo a terra
+            </p>
+          )}
           {scopreIlMonte && (pause === null || !pause.raccolta) && (
             <MonteScopertoInTavola
               monte={state.monte}
@@ -451,7 +456,7 @@ function scartoDelMonte(indice: number, quante: number): number {
 
 /**
  * Il conto dei trionfi, l'aiuto del principiante: quanti sono passati e quanti
- * ne girano ancora. Quanti, mai dove: dove stanno e' il mestiere di chi gioca.
+ * ne restano in gioco, propri compresi. Quanti, mai dove.
  */
 function ContoDeiTrionfi({ state, seat }: { state: HandState; seat: number }): ReactElement {
   const { usciti, inGiro } = contaTrionfi(state, seat);

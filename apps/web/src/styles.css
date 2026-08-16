@@ -1287,6 +1287,12 @@ button.carta:active {
   color: var(--oro-tenue);
 }
 
+/* Stesso annuncio, un filo piu' in alto: in mezzo ci sono le giocate. */
+.annuncio-terra {
+  top: 10%;
+  transform: translate(-50%, 0);
+}
+
 /*
  * Il monte scoperto a fine smazzata: sta al centro del tavolo, al posto
  * delle giocate, il tempo di guardarlo. Le carte sono piu' piccole di una
