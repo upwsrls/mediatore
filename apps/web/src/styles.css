@@ -1668,6 +1668,11 @@ button.carta:active {
     min-height: 38px;
   }
 
+  .riga-terra .bottone-grande {
+    min-height: 38px;
+    font-size: 14px;
+  }
+
   /* Su schermi bassi la regola scritta e' la prima cosa a cui rinunciare:
      i bottoni si capiscono da soli. */
   .nota-dichiarazioni {
@@ -1715,6 +1720,12 @@ button.carta:active {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.riga-terra .bottone-grande {
+  width: 100%;
+  min-height: 42px;
+  font-size: 15px;
 }
 
 /* Chi ha in mano quelle carte: in hotseat il telefono cambia mani, il tavolo no. */

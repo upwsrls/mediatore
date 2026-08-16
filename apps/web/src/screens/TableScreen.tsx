@@ -1,5 +1,6 @@
 import type { Card as CartaEngine, HandState } from '@mediatore/engine';
 import { chiVedeIlMonte, legalPlaysFor, totalPoints } from '@mediatore/engine';
+import { puoMettereATerra, vistaDaStato } from '@mediatore/bot';
 import type { CSSProperties, ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { useAudio } from '../audio/useAudio';
@@ -28,6 +29,7 @@ interface Props {
   state: HandState;
   pause: TrickPause | null;
   onGioca: (cardId: string) => void;
+  onMettiATerra: () => void;
   onCarteScoperte: (acceso: boolean) => void;
   onLivello: (livello: Livello) => void;
 }
@@ -37,6 +39,7 @@ export function TableScreen({
   state,
   pause,
   onGioca,
+  onMettiATerra,
   onCarteScoperte,
   onLivello,
 }: Props): ReactElement {
@@ -79,7 +82,10 @@ export function TableScreen({
   const legali = tocca ? legalPlaysFor(state, chiMostra) : [];
   const legaliIds = new Set(legali.map((carta) => carta.id));
   const obbligo = aiuti && tocca ? obbligoCorrente(mano, legali, state) : null;
-  const puoGiocare = tocca && !scopreIlMonte && pause === null;
+  const aTerra = session.terra !== null;
+  const puoGiocare = tocca && !scopreIlMonte && pause === null && !aTerra;
+  const puoTerra =
+    puoGiocare && puoMettereATerra(vistaDaStato(state, chiMostra));
 
   // Due tocchi: la carta resta alzata finche' non si conferma o non si
   // cambia idea. Se il turno se ne va, non puo' restare sollevata.
@@ -132,9 +138,16 @@ export function TableScreen({
   // A carte scoperte le mani degli altri si guardano, ordinate come le
   // ordinerebbe il gioco. E' roba per gli occhi soltanto: i bot ricevono la
   // loro VistaDelBot come sempre e da qui non passa niente.
-  const spia = session.carteScoperte && session.umano !== null;
-  const spiate = (seat: number): CartaEngine[] | null =>
-    spia && seat !== session.umano ? ordinaCarte(state.hands[seat] ?? [], state.trump) : null;
+  const spia = (session.carteScoperte && session.umano !== null) || aTerra;
+  const nascondiManoTerra =
+    aTerra && pause?.terra === true && pause.raccolta && pause.winner === chiMostra;
+  const spiate = (seat: number): CartaEngine[] | null => {
+    if (aTerra && pause?.terra === true && pause.raccolta && seat === pause.winner) {
+      return [];
+    }
+    if (spia && seat !== chiMostra) return ordinaCarte(state.hands[seat] ?? [], state.trump);
+    return null;
+  };
   // Nell amico l'ultimo segreto e' chi tiene la carta chiamata: il resto del
   // tavolo lo sa dall'annuncio.
   const chiHaLAmico =
@@ -151,9 +164,11 @@ export function TableScreen({
     ? pause?.eIlMonte === true
       ? pause.cards
       : carteDelMonte
-    : pause !== null
-      ? pause.cards
-      : state.currentTrick.plays;
+    : pause?.terra === true && !pause.raccolta
+      ? state.currentTrick.plays
+      : pause !== null
+        ? pause.cards
+        : state.currentTrick.plays;
 
   // Ogni sedia del tavolo si monta allo stesso modo: qui dentro si guarda chi
   // ci sta seduto, fuori resta solo la pianta del tavolo.
@@ -361,7 +376,7 @@ export function TableScreen({
           // La misura della carta nasce dalle carte iniziali e non cambia piu'.
           style={{ '--per-fila': perFila } as CSSProperties}
         >
-          {posti.map(({ carta, riga, scarto }) => {
+          {(nascondiManoTerra ? [] : posti).map(({ carta, riga, scarto }) => {
             // Si spengono solo le non giocabili, e solo quando tocca a chi
             // guarda: mentre aspetta la mano si vede accesa, per decidere.
             const giocabile = puoGiocare && legaliIds.has(carta.id);
@@ -398,6 +413,18 @@ export function TableScreen({
           <p className={obbligo === null ? 'obbligo obbligo-in-attesa' : 'obbligo'}>
             {obbligo ?? '\u00a0'}
           </p>
+        )}
+        {!scopreIlMonte && (
+          <div className="riga-terra">
+            <button
+              type="button"
+              className="bottone-grande"
+              disabled={!puoTerra}
+              onClick={onMettiATerra}
+            >
+              metti a terra
+            </button>
+          </div>
         )}
       </div>
 

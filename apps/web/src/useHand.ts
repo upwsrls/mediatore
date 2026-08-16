@@ -31,7 +31,13 @@ import {
   takeMonte,
   totalPoints,
 } from '@mediatore/engine';
-import { scegliCarta, scegliScarti, vistaDaStato } from '@mediatore/bot';
+import {
+  completaMettendoATerra,
+  puoMettereATerra,
+  scegliCarta,
+  scegliScarti,
+  vistaDaStato,
+} from '@mediatore/bot';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   cartaDellAmico,
@@ -135,6 +141,11 @@ export interface Session {
    * finisce senza essere giocata, quindi non c'e' nessun HandState da contare.
    */
   scaduta: boolean;
+  /**
+   * Chi ha messo a terra: le mani di tutti restano scoperte finche' le
+   * sue carte non sono state raccolte. Null se non sta succedendo.
+   */
+  terra: number | null;
 }
 
 export interface TrickPause {
@@ -149,6 +160,8 @@ export interface TrickPause {
    * in un altro timer.
    */
   eIlMonte?: boolean;
+  /** Le carte restano scoperte cinque secondi, poi volano verso chi ha messo a terra. */
+  terra?: boolean;
 }
 
 /**
@@ -158,6 +171,9 @@ export interface TrickPause {
  * quando e' stata giocata: per questo sta in un effetto, non nella giocata.
  */
 const CARTE_FERME_MS = 1500;
+
+/** Quanto restano scoperte le mani di tutti, a terra. */
+const TERRA_FERME_MS = 5000;
 
 /** Poi le carte volano verso chi ha vinto: va d accordo con la transizione CSS. */
 const RACCOLTA_MS = 600;
@@ -317,6 +333,7 @@ function nuovaSessione(
     state: null,
     ordine: [],
     scaduta: false,
+    terra: null,
   };
 }
 
@@ -388,6 +405,7 @@ export interface UseHand {
   nessunoSeLaSente: () => void;
   scegliAmico: (card: Card) => void;
   gioca: (cardId: string) => void;
+  mettiATerra: () => void;
   ricomincia: () => void;
   chiudiErrore: () => void;
 }
@@ -420,7 +438,12 @@ export function useHand(): UseHand {
     if (pause === null || pause.raccolta) return undefined;
     // Il monte sta fermo i suoi quattro secondi: le altre basi il tempo
     // di guardarle. Poi, per tutte, parte la stessa raccolta.
-    const attesa = pause.eIlMonte === true ? SECONDI_DEL_MONTE * 1000 : CARTE_FERME_MS;
+    const attesa =
+      pause.terra === true
+        ? TERRA_FERME_MS
+        : pause.eIlMonte === true
+          ? SECONDI_DEL_MONTE * 1000
+          : CARTE_FERME_MS;
     const timer = setTimeout(() => {
       setPause((prev) => (prev === null ? null : { ...prev, raccolta: true }));
     }, attesa);
@@ -440,6 +463,27 @@ export function useHand(): UseHand {
         setPause(null);
         setSession((prev) =>
           prev !== null && prev.phase === 'monte' ? { ...prev, phase: 'end' } : prev,
+        );
+        return;
+      }
+      if (pause.terra === true) {
+        const prima = session?.state;
+        if (prima == null) {
+          setPause(null);
+          return;
+        }
+        const prossimo = completaMettendoATerra(prima, pause.winner);
+        const score = scoreHand(prossimo);
+        registro.chiudiSmazzata(
+          registro.esitoDaPunteggio(score, settle(prossimo, score)),
+          prossimo.alliance.kind === 'amico' ? prossimo.alliance.friend : null,
+        );
+        const delMonte = pausaDelMonte(prossimo);
+        setPause(delMonte);
+        setSession((prev) =>
+          prev === null
+            ? prev
+            : { ...prev, state: prossimo, terra: null, phase: dopoLaSmazzata({ ...prev, state: prossimo }) },
         );
         return;
       }
@@ -740,7 +784,7 @@ export function useHand(): UseHand {
 
   const gioca = useCallback(
     (cardId: string) => {
-      if (session?.state == null || pause !== null) return;
+      if (session?.state == null || pause !== null || session.terra !== null) return;
       const corrente = session.state;
       let prossimo: HandState;
       try {
@@ -787,6 +831,23 @@ export function useHand(): UseHand {
     },
     [session, pause],
   );
+
+  const mettiATerra = useCallback(() => {
+    if (session?.state == null || pause !== null || session.terra !== null) return;
+    const corrente = session.state;
+    const chi = corrente.turn;
+    if (!puoMettereATerra(vistaDaStato(corrente, chi))) return;
+    suona('scelta');
+    const sue = corrente.hands[chi] ?? [];
+    setPause({
+      winner: chi,
+      points: 0,
+      cards: [...corrente.currentTrick.plays, ...sue.map((card) => ({ player: chi, card }))],
+      raccolta: false,
+      terra: true,
+    });
+    setSession({ ...session, terra: chi });
+  }, [session, pause]);
 
   const nuovaSmazzata = useCallback(() => {
     if (session === null) return;
@@ -993,6 +1054,10 @@ export function useHand(): UseHand {
       // le carte uscite, niente di piu'. Le mani degli altri non le vede.
       const vista = vistaDaStato(state, state.turn);
       const attesa = pausaCarta(legali.length, caso);
+      if (puoMettereATerra(vista)) {
+        const timer = setTimeout(() => mettiATerra(), attesa);
+        return () => clearTimeout(timer);
+      }
       if (!session.botPensante) {
         const carta = scegliCarta(vista, caso);
         const timer = setTimeout(() => gioca(carta.id), attesa);
@@ -1011,7 +1076,7 @@ export function useHand(): UseHand {
     }
 
     return undefined;
-  }, [session, pause, decidi, confermaScarti, scegliAmico, apre, gioca]);
+  }, [session, pause, decidi, confermaScarti, scegliAmico, apre, gioca, mettiATerra]);
 
   const ricomincia = useCallback(() => {
     // Ci si alza da tavola: la compagnia resta li', il tavolo dopo avra' la
@@ -1039,6 +1104,7 @@ export function useHand(): UseHand {
     nessunoSeLaSente,
     scegliAmico,
     gioca,
+    mettiATerra,
     ricomincia,
     chiudiErrore,
   };

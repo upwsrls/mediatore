@@ -53,3 +53,4 @@ export {
 } from './valutaMano.ts';
 export type { FonteDiPrese } from './scarta.ts';
 export { ePadronaInMano, fonteDiPrese, puntiTollerati, scegliScarti } from './scarta.ts';
+export { completaMettendoATerra, puoMettereATerra } from './terra.ts';

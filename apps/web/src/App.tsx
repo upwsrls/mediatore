@@ -99,6 +99,7 @@ export function App(): ReactElement {
           state={state}
           pause={hand.pause}
           onGioca={hand.gioca}
+          onMettiATerra={hand.mettiATerra}
           onCarteScoperte={hand.cambiaCarteScoperte}
           onLivello={hand.cambiaLivello}
         />
