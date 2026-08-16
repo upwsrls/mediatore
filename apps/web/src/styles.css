@@ -732,20 +732,14 @@ button.carta:active {
 }
 
 /* Le tre speciali stanno su una riga sola: il costo sopra, il nome sotto.
-   L'altezza resta fissa: la conferma e' un riquadro sopra la pagina, questa
-   riga non si tocca. */
-.riga-speciali {
-  --altezza-speciali: 44px;
+   Senza tetto di altezza e senza stringere i bottoni sotto il testo. */
+.riga-bottoni.riga-speciali {
   flex-wrap: nowrap;
-  align-items: stretch;
-  min-height: var(--altezza-speciali);
-  height: var(--altezza-speciali);
 }
 
-.riga-speciali .bottone-dichiarazione {
+.riga-bottoni.riga-speciali .bottone-dichiarazione {
   flex: 1 1 0;
-  min-width: 0;
-  min-height: var(--altezza-speciali);
+  min-height: 44px;
   padding: 0 4px;
 }
 
@@ -758,6 +752,7 @@ button.carta:active {
   letter-spacing: 0.02em;
   text-align: center;
   line-height: 1.15;
+  white-space: nowrap;
 }
 
 .nota-dichiarazioni {
@@ -1669,8 +1664,8 @@ button.carta:active {
     font-size: 15px;
   }
 
-  .riga-speciali {
-    --altezza-speciali: 38px;
+  .riga-bottoni.riga-speciali .bottone-dichiarazione {
+    min-height: 38px;
   }
 
   /* Su schermi bassi la regola scritta e' la prima cosa a cui rinunciare:
