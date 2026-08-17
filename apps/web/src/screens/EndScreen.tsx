@@ -22,6 +22,7 @@ interface Props {
   /** I secondi che restano prima che la smazzata dopo parta da sola. */
   secondiAllaRipartenza: number;
   onDieciSecondi: () => void;
+  puoDieciSecondi: boolean;
   onEsci: () => void;
   onCambiaPuntoDiVista: (seat: number) => void;
 }
@@ -31,8 +32,8 @@ function conSegno(valore: number): string {
 }
 
 /**
- * Una riga per giocatore: nome, punti, quota di adesso e da inizio tavolo.
- * Senza punti — smazzata non giocata — restano nome, quota e da inizio tavolo.
+ * Una riga per giocatore: nome, punti, partita di adesso e da inizio tavolo.
+ * Senza punti — smazzata non giocata — restano nome, partita e da inizio tavolo.
  */
 function ContoGiocatori({
   settlement,
@@ -50,9 +51,9 @@ function ContoGiocatori({
     <ul className={conPunti ? 'lista-conto' : 'lista-conto lista-conto-solo-quote'}>
       <li className="lista-conto-capo" aria-hidden="true">
         <span />
-        {conPunti && <span className="lista-conto-num">punti</span>}
-        <span className="lista-conto-num">quota</span>
-        <span className="lista-conto-num lista-conto-inizio">
+        {conPunti && <span className="lista-conto-titolo">punti</span>}
+        <span className="lista-conto-titolo">partita</span>
+        <span className="lista-conto-titolo lista-conto-inizio">
           da inizio
           <br />
           tavolo
@@ -77,6 +78,7 @@ export function EndScreen({
   state,
   secondiAllaRipartenza,
   onDieciSecondi,
+  puoDieciSecondi,
   onEsci,
   onCambiaPuntoDiVista,
 }: Props): ReactElement {
@@ -88,6 +90,7 @@ export function EndScreen({
         session={session}
         secondiAllaRipartenza={secondiAllaRipartenza}
         onDieciSecondi={onDieciSecondi}
+        puoDieciSecondi={puoDieciSecondi}
         onEsci={onEsci}
         onCambiaPuntoDiVista={onCambiaPuntoDiVista}
       />
@@ -147,6 +150,7 @@ export function EndScreen({
       <ContoAllaRovescia
         secondi={secondiAllaRipartenza}
         onDieciSecondi={onDieciSecondi}
+        puoDieciSecondi={puoDieciSecondi}
       />
 
       <div className="riga-bottoni">
@@ -173,14 +177,16 @@ export function EndScreen({
 
 /**
  * Il tavolo riparte da solo: il numero che scende si legge da lontano, e
- * accanto si possono chiedere altri dieci secondi, anche piu' volte.
+ * accanto si possono chiedere altri dieci secondi, una volta sola.
  */
 function ContoAllaRovescia({
   secondi,
   onDieciSecondi,
+  puoDieciSecondi,
 }: {
   secondi: number;
   onDieciSecondi: () => void;
+  puoDieciSecondi: boolean;
 }): ReactElement {
   return (
     <div className="conto-alla-rovescia">
@@ -191,7 +197,7 @@ function ContoAllaRovescia({
         type="button"
         className="bottone-piccolo"
         onClick={onDieciSecondi}
-        disabled={secondi <= 0}
+        disabled={secondi <= 0 || !puoDieciSecondi}
       >
         +10 secondi
       </button>
@@ -314,6 +320,7 @@ function FineScaduta({
   session,
   secondiAllaRipartenza,
   onDieciSecondi,
+  puoDieciSecondi,
   onEsci,
   onCambiaPuntoDiVista,
 }: Omit<Props, 'state'>): ReactElement {
@@ -341,6 +348,7 @@ function FineScaduta({
       <ContoAllaRovescia
         secondi={secondiAllaRipartenza}
         onDieciSecondi={onDieciSecondi}
+        puoDieciSecondi={puoDieciSecondi}
       />
 
       <div className="riga-bottoni">

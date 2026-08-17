@@ -229,12 +229,12 @@ function pausaDelMonte(state: HandState): TrickPause | null {
 
 /**
  * Quanto dura il conteggio finale prima che la smazzata dopo parta da sola.
- * Sul riepilogo si possono aggiungere altri dieci secondi, anche piu' volte.
+ * Sul riepilogo si possono aggiungere altri dieci secondi, una volta sola.
  * Si tara solo da qui.
  */
 export const SECONDI_PRIMA_DI_RIPARTIRE = 10;
 
-/** Quanto si aggiunge ogni volta che sul riepilogo si chiede altro tempo. */
+/** Quanto si aggiunge, una volta per giocata, se sul riepilogo si chiede tempo. */
 export const SECONDI_IN_PIU = 10;
 
 /** Gli ultimi secondi del conto alla rovescia si sentono, uno per uno. */
@@ -443,8 +443,10 @@ export interface UseHand {
    * smazzata finita: fuori da li' e' il conteggio pieno, mai mostrato.
    */
   secondiAllaRipartenza: number;
-  /** Altri dieci secondi sul riepilogo: si puo' chiedere anche piu' volte. */
+  /** Altri dieci secondi sul riepilogo: una volta sola per giocata. */
   aggiungiDieciSecondi: () => void;
+  /** Falso dopo la prima pressione, di nuovo vero alla giocata dopo. */
+  puoDieciSecondi: boolean;
   start: (
     players: number,
     variant: Variant,
@@ -486,6 +488,7 @@ export function useHand(): UseHand {
    * allungare il tempo non sposterebbe la ripartenza.
    */
   const secondiRimasti = useRef(SECONDI_PRIMA_DI_RIPARTIRE);
+  const [puoDieciSecondi, setPuoDieciSecondi] = useState(true);
 
   /**
    * Da quando la scelta e' davanti al giocatore. Riparte a ogni cambio di
@@ -1021,6 +1024,7 @@ export function useHand(): UseHand {
     // Il conto lo tiene il battito per conto suo: il numero a schermo e' una
     // copia, e il tocco degli ultimi secondi non puo' dipendere da lei.
     secondiRimasti.current = SECONDI_PRIMA_DI_RIPARTIRE;
+    setPuoDieciSecondi(true);
     const battito = setInterval(() => {
       if (secondiRimasti.current <= 0) return;
       secondiRimasti.current -= 1;
@@ -1038,10 +1042,13 @@ export function useHand(): UseHand {
   }, [session?.phase, session?.seed]);
 
   const aggiungiDieciSecondi = useCallback(() => {
-    if (session?.phase !== 'end' || secondiRimasti.current <= 0) return;
+    if (session?.phase !== 'end' || secondiRimasti.current <= 0 || !puoDieciSecondi) {
+      return;
+    }
     secondiRimasti.current += SECONDI_IN_PIU;
     setSecondiAllaRipartenza(secondiRimasti.current);
-  }, [session?.phase]);
+    setPuoDieciSecondi(false);
+  }, [session?.phase, puoDieciSecondi]);
 
   /**
    * Il proprio turno che arriva, detto a voce. Vale contro i bot, dove si
@@ -1208,6 +1215,7 @@ export function useHand(): UseHand {
     pause,
     secondiAllaRipartenza,
     aggiungiDieciSecondi,
+    puoDieciSecondi,
     start,
     cambiaPuntoDiVista,
     cambiaCarteScoperte,

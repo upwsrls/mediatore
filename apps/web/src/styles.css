@@ -1919,7 +1919,7 @@ button.carta:active {
 }
 
 /*
- * Nome, punti, quota e da inizio tavolo. Il nome prende quello che avanza e
+ * Nome, punti, partita e da inizio tavolo. Il nome prende quello che avanza e
  * va a capo se serve, senza tagliarsi: i numeri restano fermi a destra,
  * larghezza fissa, cosi' a 380px un soprannome lungo non li schiaccia.
  */
@@ -1956,10 +1956,6 @@ button.carta:active {
   align-items: end;
 }
 
-.lista-conto-capo span {
-  text-align: right;
-}
-
 .lista-conto-inizio {
   letter-spacing: 0.01em;
   line-height: 1.2;
@@ -1982,6 +1978,20 @@ button.carta:active {
   white-space: nowrap;
   /* La linea sta nel bordo, senza padding: altrimenti a 380px
      PUNTI e DA INIZIO sforano e il nome si stringe. */
+  border-left: 1px solid color-mix(in srgb, var(--oro-tenue) 45%, transparent);
+}
+
+/*
+ * I titoli non usano la classe dei numeri: quella allinea a destra e
+ * tiene il testo in nowrap, quindi la cella si stringe sul contenuto e
+ * finisce accostata alla linea. Qui la cella occupa tutta la colonna
+ * e il testo sta in mezzo.
+ */
+.lista-conto-titolo {
+  justify-self: stretch;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
   border-left: 1px solid color-mix(in srgb, var(--oro-tenue) 45%, transparent);
 }
 
