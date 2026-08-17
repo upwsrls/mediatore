@@ -891,6 +891,7 @@ button.carta:active {
  */
 .conto-alla-rovescia {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 10px;
@@ -901,6 +902,17 @@ button.carta:active {
   background: var(--panno-chiaro);
   font-size: 15px;
   color: var(--oro-tenue);
+}
+
+.conto-alla-rovescia p {
+  margin: 0;
+}
+
+.conto-alla-rovescia .bottone-piccolo {
+  flex: 0 0 auto;
+  border-color: var(--oro);
+  color: var(--oro);
+  white-space: nowrap;
 }
 
 .conto-alla-rovescia strong {

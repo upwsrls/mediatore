@@ -222,10 +222,13 @@ function pausaDelMonte(state: HandState): TrickPause | null {
 
 /**
  * Quanto dura il conteggio finale prima che la smazzata dopo parta da sola.
- * Il tavolo non aspetta nessuno: sono il tempo di leggere le quote, non di
- * ripensarci, e non si allungano. Si tara solo da qui.
+ * Sul riepilogo si possono aggiungere altri dieci secondi, anche piu' volte.
+ * Si tara solo da qui.
  */
 export const SECONDI_PRIMA_DI_RIPARTIRE = 10;
+
+/** Quanto si aggiunge ogni volta che sul riepilogo si chiede altro tempo. */
+export const SECONDI_IN_PIU = 10;
 
 /** Gli ultimi secondi del conto alla rovescia si sentono, uno per uno. */
 const SECONDI_COL_TOCCO = 3;
@@ -393,6 +396,8 @@ export interface UseHand {
    * smazzata finita: fuori da li' e' il conteggio pieno, mai mostrato.
    */
   secondiAllaRipartenza: number;
+  /** Altri dieci secondi sul riepilogo: si puo' chiedere anche piu' volte. */
+  aggiungiDieciSecondi: () => void;
   start: (
     players: number,
     variant: Variant,
@@ -428,6 +433,12 @@ export function useHand(): UseHand {
   const [secondiAllaRipartenza, setSecondiAllaRipartenza] = useState(
     SECONDI_PRIMA_DI_RIPARTIRE,
   );
+  /**
+   * Il numero a schermo e' una copia: il battito e il bottone dei dieci
+   * secondi in piu' devono leggere e scrivere lo stesso conto, altrimenti
+   * allungare il tempo non sposterebbe la ripartenza.
+   */
+  const secondiRimasti = useRef(SECONDI_PRIMA_DI_RIPARTIRE);
 
   /**
    * Da quando la scelta e' davanti al giocatore. Riparte a ogni cambio di
@@ -918,11 +929,10 @@ export function useHand(): UseHand {
 
   /**
    * Il conteggio finale dura quanto un conto alla rovescia, e poi il tavolo
-   * riparte da solo: nessuna pausa e nessun modo di allungarlo, come al tavolo
-   * vero, dove le carte si rimescolano mentre ancora si commenta. Il battito
-   * serve al numero a schermo, il tempo alla ripartenza: se si esce dal tavolo,
-   * o se lo schermo se ne va per qualsiasi ragione, muoiono insieme e non
-   * resta nessun timer a far nascere una smazzata senza tavolo.
+   * riparte da solo. I dieci secondi in piu' allungano questo stesso conto:
+   * il battito scende, il bottone aggiunge, e a zero si riparte. Se si esce
+   * dal tavolo, o se lo schermo se ne va per qualsiasi ragione, il battito
+   * muore e non resta nessun timer a far nascere una smazzata senza tavolo.
    *
    * Il conto parte una volta per smazzata, e il seed e' quello che la
    * distingue: il resto della sessione — il posto da cui si guarda, per dirne
@@ -963,23 +973,28 @@ export function useHand(): UseHand {
     }
     // Il conto lo tiene il battito per conto suo: il numero a schermo e' una
     // copia, e il tocco degli ultimi secondi non puo' dipendere da lei.
-    let rimasti = SECONDI_PRIMA_DI_RIPARTIRE;
+    secondiRimasti.current = SECONDI_PRIMA_DI_RIPARTIRE;
     const battito = setInterval(() => {
-      rimasti = rimasti > 0 ? rimasti - 1 : 0;
-      setSecondiAllaRipartenza(rimasti);
-      if (rimasti > 0 && rimasti <= SECONDI_COL_TOCCO) suona('contoAllaRovescia');
+      if (secondiRimasti.current <= 0) return;
+      secondiRimasti.current -= 1;
+      setSecondiAllaRipartenza(secondiRimasti.current);
+      if (secondiRimasti.current > 0 && secondiRimasti.current <= SECONDI_COL_TOCCO) {
+        suona('contoAllaRovescia');
+      }
+      if (secondiRimasti.current === 0) riparti.current();
     }, 1000);
-    const ripartenza = setTimeout(
-      () => riparti.current(),
-      SECONDI_PRIMA_DI_RIPARTIRE * 1000,
-    );
     return () => {
       clearInterval(battito);
-      clearTimeout(ripartenza);
       clearTimeout(chiusura);
       setSecondiAllaRipartenza(SECONDI_PRIMA_DI_RIPARTIRE);
     };
   }, [session?.phase, session?.seed]);
+
+  const aggiungiDieciSecondi = useCallback(() => {
+    if (session?.phase !== 'end' || secondiRimasti.current <= 0) return;
+    secondiRimasti.current += SECONDI_IN_PIU;
+    setSecondiAllaRipartenza(secondiRimasti.current);
+  }, [session?.phase]);
 
   /**
    * Il proprio turno che arriva, detto a voce. Vale contro i bot, dove si
@@ -1125,6 +1140,7 @@ export function useHand(): UseHand {
     error,
     pause,
     secondiAllaRipartenza,
+    aggiungiDieciSecondi,
     start,
     cambiaPuntoDiVista,
     cambiaCarteScoperte,

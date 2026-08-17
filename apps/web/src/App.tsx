@@ -106,6 +106,7 @@ export function App(): ReactElement {
           session={session}
           state={state}
           secondiAllaRipartenza={hand.secondiAllaRipartenza}
+          onDieciSecondi={hand.aggiungiDieciSecondi}
           onEsci={hand.ricomincia}
           onCambiaPuntoDiVista={hand.cambiaPuntoDiVista}
         />

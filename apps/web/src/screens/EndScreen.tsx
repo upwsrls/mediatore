@@ -10,7 +10,6 @@ import {
   contoDellaPosta,
   spiegazioniSupplementi,
 } from '../chiamate';
-import { sommaDelConto } from '../contoTavolo';
 import { useInCima } from '../inCima';
 import { nomeGiocatore } from '../labels';
 import { schieramenti } from '../roles';
@@ -22,6 +21,7 @@ interface Props {
   state: HandState | null;
   /** I secondi che restano prima che la smazzata dopo parta da sola. */
   secondiAllaRipartenza: number;
+  onDieciSecondi: () => void;
   onEsci: () => void;
   onCambiaPuntoDiVista: (seat: number) => void;
 }
@@ -72,6 +72,7 @@ export function EndScreen({
   session,
   state,
   secondiAllaRipartenza,
+  onDieciSecondi,
   onEsci,
   onCambiaPuntoDiVista,
 }: Props): ReactElement {
@@ -82,6 +83,7 @@ export function EndScreen({
       <FineScaduta
         session={session}
         secondiAllaRipartenza={secondiAllaRipartenza}
+        onDieciSecondi={onDieciSecondi}
         onEsci={onEsci}
         onCambiaPuntoDiVista={onCambiaPuntoDiVista}
       />
@@ -90,8 +92,6 @@ export function EndScreen({
 
   const score = scoreHand(state);
   const settlement = settle(state, score);
-  const somma = sommaDelConto(settlement);
-  const sommaTotali = sommaDelConto(session.totali);
 
   return (
     <section className="schermata schermata-conteggio">
@@ -109,9 +109,6 @@ export function EndScreen({
           punti={score.perPlayer}
           state={state}
         />
-        <p className="nota">
-          somma delle quote: {somma} · somma dei totali: {sommaTotali}
-        </p>
       </div>
 
       <div className="blocco">
@@ -143,7 +140,10 @@ export function EndScreen({
         )}
       </div>
 
-      <ContoAllaRovescia secondi={secondiAllaRipartenza} />
+      <ContoAllaRovescia
+        secondi={secondiAllaRipartenza}
+        onDieciSecondi={onDieciSecondi}
+      />
 
       <div className="riga-bottoni">
         <button type="button" className="bottone-grande bottone-secondario" onClick={onEsci}>
@@ -168,15 +168,30 @@ export function EndScreen({
 }
 
 /**
- * Il tavolo riparte da solo, e questo e' l'unico avviso che ne da': deve
- * leggersi al primo sguardo, perche' i secondi che restano sono tutto quello
- * che il giocatore puo' decidere in questa schermata.
+ * Il tavolo riparte da solo: il numero che scende si legge da lontano, e
+ * accanto si possono chiedere altri dieci secondi, anche piu' volte.
  */
-function ContoAllaRovescia({ secondi }: { secondi: number }): ReactElement {
+function ContoAllaRovescia({
+  secondi,
+  onDieciSecondi,
+}: {
+  secondi: number;
+  onDieciSecondi: () => void;
+}): ReactElement {
   return (
-    <p className="conto-alla-rovescia" role="timer">
-      tornerete al tavolo fra <strong>{secondi}</strong>
-    </p>
+    <div className="conto-alla-rovescia">
+      <p role="timer">
+        tornerete al tavolo fra <strong>{secondi}</strong>
+      </p>
+      <button
+        type="button"
+        className="bottone-piccolo"
+        onClick={onDieciSecondi}
+        disabled={secondi <= 0}
+      >
+        +10 secondi
+      </button>
+    </div>
   );
 }
 
@@ -294,6 +309,7 @@ function Supplementi({ score, state }: { score: HandScore; state: HandState }): 
 function FineScaduta({
   session,
   secondiAllaRipartenza,
+  onDieciSecondi,
   onEsci,
   onCambiaPuntoDiVista,
 }: Omit<Props, 'state'>): ReactElement {
@@ -316,13 +332,12 @@ function FineScaduta({
 
       <div className="blocco">
         <ContoGiocatori settlement={settlement} totali={session.totali} state={null} />
-        <p className="nota">
-          somma delle quote: {sommaDelConto(settlement)} · somma dei totali:{' '}
-          {sommaDelConto(session.totali)}
-        </p>
       </div>
 
-      <ContoAllaRovescia secondi={secondiAllaRipartenza} />
+      <ContoAllaRovescia
+        secondi={secondiAllaRipartenza}
+        onDieciSecondi={onDieciSecondi}
+      />
 
       <div className="riga-bottoni">
         <button type="button" className="bottone-grande bottone-secondario" onClick={onEsci}>
