@@ -24,7 +24,10 @@ import type { VistaDelBot } from './vista.ts';
  * presi senza averli fatti.
  */
 export function puoMettereATerra(vista: VistaDelBot): boolean {
-  if (vista.mano.length === 0) return false;
+  // Una carta sola si gioca: non c'e' una smazzata da chiudere. Se qui
+  // restasse acceso, all'ultima base il bot chiamerebbe terra, la UI
+  // rifiuterebbe, e il tavolo resterebbe fermo per sempre.
+  if (vista.mano.length < 2) return false;
   if (!vista.mano.every((carta) => eFirmaPerTerra(vista, carta))) return false;
   if (vista.presaInCorso.plays.length === 0) return true;
 

@@ -1919,9 +1919,9 @@ button.carta:active {
 }
 
 /*
- * Nome, punti e quota sulla stessa riga. Il nome prende quello che avanza e
- * va a capo se serve: i numeri restano fermi a destra, larghezza fissa, cosi'
- * a 380px un soprannome lungo non li schiaccia e non li fa sparire.
+ * Nome, punti, quota e da inizio tavolo. Il nome prende quello che avanza e
+ * va a capo se serve, senza tagliarsi: i numeri restano fermi a destra,
+ * larghezza fissa, cosi' a 380px un soprannome lungo non li schiaccia.
  */
 .lista-conto {
   display: flex;
@@ -1938,13 +1938,13 @@ button.carta:active {
   display: grid;
   /* rem, non em: la riga dei titoli e' a 12px e con em le colonne
      non allineano piu' i numeri. */
-  grid-template-columns: minmax(0, 1fr) 2.75rem 3.25rem 3.25rem;
+  grid-template-columns: minmax(0, 1fr) 2.75rem 3.25rem 4rem;
   align-items: baseline;
-  column-gap: 8px;
+  column-gap: 14px;
 }
 
 .lista-conto-solo-quote > li {
-  grid-template-columns: minmax(0, 1fr) 3.25rem 3.25rem;
+  grid-template-columns: minmax(0, 1fr) 3.25rem 4rem;
 }
 
 .lista-conto-capo {
@@ -1953,15 +1953,22 @@ button.carta:active {
   letter-spacing: 0.02em;
   text-transform: uppercase;
   opacity: 0.7;
+  align-items: end;
 }
 
 .lista-conto-capo span {
   text-align: right;
 }
 
+.lista-conto-inizio {
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  white-space: normal;
+}
+
 .lista-conto-nome {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .lista-conto-nome .giocatore {
@@ -1973,6 +1980,13 @@ button.carta:active {
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  /* La linea sta nel bordo, senza padding: altrimenti a 380px
+     PUNTI e DA INIZIO sforano e il nome si stringe. */
+  border-left: 1px solid color-mix(in srgb, var(--oro-tenue) 45%, transparent);
+}
+
+.lista-conto-capo .lista-conto-inizio {
+  white-space: normal;
 }
 
 .esito {

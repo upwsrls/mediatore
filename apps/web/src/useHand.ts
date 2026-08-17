@@ -185,6 +185,13 @@ const TERRA_FERME_MS = 5000;
 const RACCOLTA_MS = 600;
 
 /**
+ * Se un bot deve giocare e per questi millisecondi non succede niente, il
+ * tavolo e' inceppato: meglio dirlo che restare muti. La pausa di una
+ * carta sta sotto i due secondi, quindi cinque bastano.
+ */
+const TAVOLO_FERMO_MS = 5000;
+
+/**
  * Quanto resta il monte fermo e scoperto al centro del tavolo, prima di
  * raccogliersi. Poi vola verso chi ha vinto l'ultima base, come ogni altra
  * presa, e solo a volo finito si apre il riepilogo. I dieci secondi del
@@ -260,6 +267,46 @@ function nuovoSeed(): number {
 
 function messaggio(errore: unknown): string {
   return errore instanceof Error ? errore.message : String(errore);
+}
+
+/**
+ * Cosa c'era sul tavolo quando si e' fermato: fase, turno, carte in mano.
+ * Serve a capire al volo dove si e' inceppato, la prossima volta.
+ */
+export function fotografiaDelTavolo(
+  session: Session,
+  pause: TrickPause | null,
+): {
+  fase: Phase;
+  turno: number | null;
+  carteInMano: { posto: number; quante: number; carte: string[] }[];
+  inTavola: { posto: number; carta: string }[];
+  basiFatte: number;
+  terra: number | null;
+  pausa: { raccolta: boolean; terra: boolean } | null;
+} {
+  const state = session.state;
+  const mani = state?.hands ?? session.hands;
+  return {
+    fase: session.phase,
+    turno: state?.turn ?? null,
+    carteInMano: mani.map((mano, posto) => ({
+      posto,
+      quante: mano.length,
+      carte: mano.map((carta) => carta.id),
+    })),
+    inTavola:
+      state?.currentTrick.plays.map((giocata) => ({
+        posto: giocata.player,
+        carta: giocata.card.id,
+      })) ?? [],
+    basiFatte: state?.completedTricks.length ?? 0,
+    terra: session.terra,
+    pausa:
+      pause === null
+        ? null
+        : { raccolta: pause.raccolta, terra: pause.terra === true },
+  };
 }
 
 /**
@@ -1100,6 +1147,8 @@ export function useHand(): UseHand {
       // le carte uscite, niente di piu'. Le mani degli altri non le vede.
       const vista = vistaDaStato(state, state.turn);
       const attesa = pausaCarta(legali.length, caso);
+      // Due carte almeno: all'ultima base si gioca, altrimenti terra
+      // rifiuta e questo effetto non riparte.
       if (puoMettereATerra(vista)) {
         const timer = setTimeout(() => mettiATerra(state.turn), attesa);
         return () => clearTimeout(timer);
@@ -1123,6 +1172,24 @@ export function useHand(): UseHand {
 
     return undefined;
   }, [session, pause, decidi, confermaScarti, scegliAmico, apre, gioca, mettiATerra]);
+
+  /**
+   * Rete di sicurezza: se tocca a un bot e per qualche secondo non esce
+   * nessuna carta, il tavolo e' inceppato. Lo si dice a schermo e in
+   * console, con fase, turno e carte in mano, cosi' non resta muto.
+   */
+  useEffect(() => {
+    if (session === null || session.umano === null || pause !== null) return undefined;
+    const state = session.state;
+    if (session.phase !== 'play' || state == null || state.finished) return undefined;
+    if (state.turn === session.umano || session.terra !== null) return undefined;
+    const timer = setTimeout(() => {
+      const foto = fotografiaDelTavolo(session, pause);
+      console.error('tavolo fermo', foto);
+      setError('il tavolo si e fermo: tocca a un bot e non arriva nessuna carta');
+    }, TAVOLO_FERMO_MS);
+    return () => clearTimeout(timer);
+  }, [session, pause]);
 
   const ricomincia = useCallback(() => {
     // Ci si alza da tavola: la compagnia resta li', il tavolo dopo avra' la

@@ -2,11 +2,13 @@ import type { Alliance, Card, HandState, Rank, Suit } from '@mediatore/engine';
 import {
   createDeck,
   createHandState,
+  legalPlaysFor,
   playCard,
   scoreHand,
   tableConfig,
 } from '@mediatore/engine';
 import { describe, expect, it } from 'vitest';
+import { scegliCarta } from './gioca.ts';
 import { completaMettendoATerra, puoMettereATerra } from './terra.ts';
 import { vistaDaStato } from './vista.ts';
 
@@ -119,6 +121,41 @@ describe('puoMettereATerra', () => {
     expect(puoMettereATerra(vistaDaStato(state, 0))).toBe(true);
   });
 
+  it('resta spento all ultima base: una carta si gioca, non si mette a terra', () => {
+    // Il caso che bloccava il tavolo: 5 con l'amico, base 8 di 8, due carte
+    // in tavola, tocca a un bot con un trionfo di comando. Senza questo
+    // veto chiamava terra, la UI diceva no, e nessuno giocava piu'.
+    const state = tavolo({
+      mani: [
+        [carta('coppe', 3)],
+        [carta('coppe', 4)],
+        [carta(TRIONFO, 7)],
+        [carta('spade', 5)],
+        [carta('denari', 2)],
+      ],
+      monte: trionfiNelMonte(7),
+      tricks: 1,
+      alliance: {
+        kind: 'amico',
+        caller: 0,
+        calledCard: carta('denari', 7).id,
+        friend: 3,
+      },
+    });
+    const dopoDue = playCard(
+      playCard(state, 0, carta('coppe', 3).id),
+      1,
+      carta('coppe', 4).id,
+    );
+    expect(dopoDue.turn).toBe(2);
+    expect(dopoDue.hands[2]).toHaveLength(1);
+    expect(dopoDue.hands[0]).toHaveLength(0);
+    expect(puoMettereATerra(vistaDaStato(dopoDue, 2))).toBe(false);
+    // La regia deve trovare una carta, non restare in attesa di terra.
+    expect(legalPlaysFor(dopoDue, 2)).toHaveLength(1);
+    expect(scegliCarta(vistaDaStato(dopoDue, 2), () => 0).id).toBe(carta(TRIONFO, 7).id);
+  });
+
   it('resta spento se la presa in corso la puo ancora perdere', () => {
     const aperto = tavolo({
       mani: [
@@ -158,5 +195,23 @@ describe('completaMettendoATerra', () => {
     expect(score.perPlayer[0]).toBe(16);
     expect(score.perPlayer[1]).toBe(0);
     expect(score.perPlayer[2]).toBe(0);
+  });
+
+  it('chiude anche se la base e gia cominciata', () => {
+    const state = tavolo({
+      mani: [
+        [carta(TRIONFO, 7), carta(TRIONFO, 'asso')],
+        [carta('coppe', 3), carta('coppe', 4)],
+        [carta('spade', 5), carta('spade', 6)],
+      ],
+      monte: trionfiNelMonte(7, 'asso'),
+      tricks: 2,
+      leader: 1,
+    });
+    const inCorso = playCard(state, 1, carta('coppe', 3).id);
+    expect(puoMettereATerra(vistaDaStato(inCorso, 0))).toBe(true);
+    const finale = completaMettendoATerra(inCorso, 0);
+    expect(finale.finished).toBe(true);
+    expect(finale.completedTricks.every((base) => base.winner === 0)).toBe(true);
   });
 });

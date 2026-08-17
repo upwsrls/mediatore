@@ -31,8 +31,8 @@ function conSegno(valore: number): string {
 }
 
 /**
- * Una riga per giocatore: nome, punti, quota di adesso e totale del tavolo.
- * Senza punti — smazzata non giocata — restano nome, quota e totale.
+ * Una riga per giocatore: nome, punti, quota di adesso e da inizio tavolo.
+ * Senza punti — smazzata non giocata — restano nome, quota e da inizio tavolo.
  */
 function ContoGiocatori({
   settlement,
@@ -50,9 +50,13 @@ function ContoGiocatori({
     <ul className={conPunti ? 'lista-conto' : 'lista-conto lista-conto-solo-quote'}>
       <li className="lista-conto-capo" aria-hidden="true">
         <span />
-        {conPunti && <span>punti</span>}
-        <span>quota</span>
-        <span>totale</span>
+        {conPunti && <span className="lista-conto-num">punti</span>}
+        <span className="lista-conto-num">quota</span>
+        <span className="lista-conto-num lista-conto-inizio">
+          da inizio
+          <br />
+          tavolo
+        </span>
       </li>
       {settlement.map((quota, seat) => (
         <li key={seat}>
